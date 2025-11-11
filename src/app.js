@@ -1,6 +1,12 @@
 // UI interactions: highlighting metadata and switching pages
 document.addEventListener('DOMContentLoaded', ()=>{
 
+  const goToPage = (page)=>{
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', page);
+    window.location.search = params.toString();
+  };
+
   // highlight corresponding metadata when focusing inputs
   document.querySelectorAll('[data-field]').forEach(el=>{
     el.addEventListener('focus', ()=> {
@@ -16,14 +22,15 @@ document.addEventListener('DOMContentLoaded', ()=>{
     });
   });
 
-  // tabs
-  document.querySelectorAll('.nav-item').forEach(btn=>{
+  // navigation buttons in sidebar and home cards
+  document.querySelectorAll('[data-page]').forEach(btn=>{
     btn.addEventListener('click', e=>{
+      if (btn.tagName === 'SELECT') return;
       e.preventDefault();
       const page = btn.dataset.page;
-      const params = new URLSearchParams(window.location.search);
-      params.set('page', page);
-      window.location.search = params.toString();
+      if (page){
+        goToPage(page);
+      }
     });
   });
 

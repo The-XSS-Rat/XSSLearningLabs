@@ -1,0 +1,24 @@
+/* Simple modern-ish styles for the lab */
+:root{
+  --bg:#0f1724;
+  --panel:#0b1220;
+  --accent:#ff6b6b;
+  --muted:#9aa6bf;
+  --card:#0f1728;
+  --glass: rgba(255,255,255,0.03);
+}
+html,body{height:100%;margin:0;font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:linear-gradient(180deg,#071421,#0a1220);color:#e6eef8}
+.container{display:grid;grid-template-columns:320px 1fr;gap:18px;padding:20px;max-width:1200px;margin:18px auto}
+.sidebar{background:var(--panel);padding:16px;border-radius:12px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
+.logo{font-weight:700;font-size:20px;color:var(--accent);margin-bottom:12px}
+.button{display:inline-block;padding:8px 12px;border-radius:8px;background:linear-gradient(90deg,var(--accent),#ff9b6b);color:#061022;text-decoration:none;margin:4px 0}
+.card{background:var(--card);padding:14px;border-radius:10px}
+.lab-title{font-size:18px;margin-bottom:8px}
+.form-row{margin-bottom:10px;display:flex;gap:8px;align-items:center}
+.input,textarea,select{width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
+meta-row{display:flex;gap:8px}
+.meta{margin-top:10px;padding:10px;border-radius:8px;background:var(--glass);font-size:13px;color:var(--muted)}
+.field-highlight{outline:3px solid rgba(255,107,107,0.12);box-shadow:0 6px 30px rgba(255,107,107,0.06)}
+.small{font-size:13px;color:var(--muted)}
+.results{margin-top:10px;padding:12px;border-radius:8px;background:#08101a;min-height:110px;overflow:auto}
+.bypass-list{font-family:monospace;white-space:pre-wrap;background:#071018;padding:8px;border-radius:8px}

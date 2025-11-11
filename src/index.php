@@ -35,12 +35,14 @@ function filter_input_level($input, $level){
 function header_html($title='XSS Lab', $active='home'){
     echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'.htmlspecialchars($title).'</title>';
     echo '<link rel="stylesheet" href="styles.css">';
-    echo '</head><body>';
+    echo '</head><body class="app-shell">';
+    echo '<div class="background-glow"></div><div class="background-grid"></div>';
     echo '<div class="container">';
     // sidebar
-    echo '<div class="sidebar card">';
+    echo '<aside class="sidebar card">';
     echo '<div class="logo">The XSS Rat — XSS Lab</div>';
     echo '<div class="sidebar-intro small">Pick a track to explore a specific XSS vector. Each lab walks you through reconnaissance, exploitation and reflection steps.</div>';
+    echo '<nav class="sidebar-nav">';
     $tabs = [
         'home'=>'Home overview',
         'fundamentals'=>'Foundations & concepts',
@@ -58,19 +60,20 @@ function header_html($title='XSS Lab', $active='home'){
         if ($k === $active) {
             $classes .= ' is-active';
         }
-        echo '<div><a class="'.$classes.'" href="#" data-page="'.htmlspecialchars($k).'">'.htmlspecialchars($v).'</a></div>';
+        echo '<a class="'.$classes.'" href="#" data-page="'.htmlspecialchars($k).'">'.htmlspecialchars($v).'</a>';
     }
-    echo '<div class="small" style="margin-top:12px">Warning: intentionally vulnerable. Run locally.</div>';
-    echo '</div>'; // sidebar end
-    echo '<div>'; // main
-    echo '<div class="card">';
+    echo '</nav>';
+    echo '<div class="sidebar-footer small">Warning: intentionally vulnerable. Run locally.</div>';
+    echo '</aside>'; // sidebar end
+    echo '<main class="main-column">';
+    echo '<div class="card surface-card">';
     echo '<div class="lab-title">'.htmlspecialchars($title).'</div>';
 }
 
 // footer
 function footer_html(){
     echo '</div>'; // card
-    echo '</div>'; // main
+    echo '</main>'; // main column
     echo '</div>'; // container
     echo '<script src="app.js"></script>';
     echo '</body></html>';

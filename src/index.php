@@ -41,7 +41,18 @@ function header_html($title='XSS Lab', $active='home'){
     echo '<div class="sidebar card">';
     echo '<div class="logo">The XSS Rat — XSS Lab</div>';
     echo '<div class="sidebar-intro small">Pick a track to explore a specific XSS vector. Each lab walks you through reconnaissance, exploitation and reflection steps.</div>';
-    $tabs = ['home'=>'Home overview','reflected'=>'Reflected XSS','stored'=>'Stored XSS','dom'=>'DOM XSS','blind'=>'Blind XSS','filter'=>'Filter lab','contexts'=>'Contexts explorer','bypasses'=>'Bypass library'];
+    $tabs = [
+        'home'=>'Home overview',
+        'fundamentals'=>'Foundations & concepts',
+        'reflected'=>'Reflected XSS',
+        'stored'=>'Stored XSS',
+        'dom'=>'DOM XSS',
+        'blind'=>'Blind XSS',
+        'filter'=>'Filter lab',
+        'contexts'=>'Contexts explorer',
+        'playground'=>'Practice playground',
+        'bypasses'=>'Bypass library'
+    ];
     foreach ($tabs as $k=>$v){
         $classes = 'nav-item button';
         if ($k === $active) {
@@ -69,17 +80,24 @@ function footer_html(){
 if ($page === 'home'){
     header_html('Home — XSS Lab', 'home');
     echo '<div class="hero">';
-    echo '<div class="hero-title">Become confident with XSS by following guided labs.</div>';
-    echo '<div class="hero-body small">Each module provides context, a step-by-step checklist and a vulnerable playground so you can practice exploitation safely.</div>';
+    echo '<div class="hero-title">Start from zero knowledge and grow into an XSS practitioner.</div>';
+    echo '<div class="hero-body small">Follow the learning path: absorb the web fundamentals, practise every XSS flavour with checklists, then solidify your skills inside the sandbox playground.</div>';
+    echo '</div>';
+    echo '<div class="meta meta-columns intro-columns">';
+    echo '<div><strong>What you will learn</strong><div class="small">Understand how browsers build the Document Object Model (DOM), how HTML tags and attributes shape a page, and how JavaScript interacts with those nodes. Each lab references these ideas so you can connect theory with the exploit workflow.</div></div>';
+    echo '<div><strong>Suggested learning order</strong><ol class="lab-steps"><li>Foundations &amp; concepts</li><li>Reflected, stored and DOM XSS labs</li><li>Filter lab + Contexts explorer</li><li>Playground scenarios and custom experiments</li></ol></div>';
+    echo '<div><strong>Practice mindset</strong><div class="small">Treat every section like an assessment: take notes, sketch payload variants, and capture lessons learned in your notebook so you leave ready to reproduce the attacks elsewhere.</div></div>';
     echo '</div>';
     echo '<div class="lab-grid">';
     $cards = [
+        ['fundamentals','Foundations &amp; concepts','Build the mental model for HTML, the DOM and JavaScript before touching payloads.'],
         ['reflected','Reflected XSS','Spot input parameters that echo immediately and craft payloads that execute on first load.'],
         ['stored','Stored XSS','Persist malicious markup inside databases or comments and watch it execute for every visitor.'],
         ['dom','DOM XSS','Manipulate client-side JavaScript sinks such as <code>innerHTML</code> and URL fragments.'],
         ['blind','Blind XSS','Plant payloads that phone home to the blind logger to prove execution in remote panels.'],
         ['filter','Filter Lab','Experiment with increasingly strict server-side filters and learn reliable bypasses.'],
         ['contexts','Contexts','See how the same payload behaves in HTML, attributes, JS, CSS and URL contexts.'],
+        ['playground','Playground','Apply everything you learned across multiple realistic mini applications.'],
         ['bypasses','Bypasses','Browse a curated list of payloads ranked from beginner friendly to advanced evasions.'],
     ];
     foreach ($cards as $card){
@@ -87,9 +105,36 @@ if ($page === 'home'){
     }
     echo '</div>';
     echo '<div class="meta meta-columns">';
-    echo '<div><strong>How to use these labs</strong><ol class="lab-steps"><li>Read the scenario to understand the application behaviour.</li><li>Use the checklist to experiment and note the results.</li><li>Capture payloads that work so you can reuse them later.</li></ol></div>';
-    echo '<div><strong>Recommended toolkit</strong><ul class="lab-list"><li>Browser devtools (network + console)</li><li>Interception proxy (Burp, OWASP ZAP)</li><li>Custom payload scratchpad</li></ul></div>';
+    echo '<div><strong>How to use these labs</strong><ol class="lab-steps"><li>Read the scenario to understand the application behaviour.</li><li>Use the checklist to experiment and note the results.</li><li>Capture payloads that work so you can reuse them later.</li><li>Reflect on how filters and contexts influenced the payload.</li></ol></div>';
+    echo '<div><strong>Recommended toolkit</strong><ul class="lab-list"><li>Browser devtools (Elements + Console + Network)</li><li>Interception proxy (Burp, OWASP ZAP)</li><li>Custom payload scratchpad or local text editor</li><li>Notes on HTML tags, JS APIs and DOM properties you discover</li></ul></div>';
     echo '</div>';
+    footer_html();
+    exit;
+}
+
+if ($page === 'fundamentals'){
+    header_html('Foundations & concepts', 'fundamentals');
+    echo '<div class="section"><div class="section-title">Welcome to the web stack</div><div class="small">Before throwing payloads at inputs, understand how browsers interpret HTML, build the Document Object Model (DOM) and execute JavaScript. This foundation lets you reason about where user-controlled data travels.</div></div>';
+    echo '<div class="section"><div class="section-title">HTML: the structure layer</div><div class="small">HyperText Markup Language describes the layout of a page using nested tags. Each tag can carry attributes that store extra data. Browsers parse these tags into DOM nodes.</div></div>';
+    echo '<div class="meta meta-columns">';
+    echo '<div><strong>HTML essentials</strong><ul class="lab-list"><li><code>&lt;tag&gt;content&lt;/tag&gt;</code> wraps text or other elements.</li><li>Attributes like <code>href="..."</code> or <code>onclick="..."</code> live inside the opening tag.</li><li>Void elements (e.g. <code>&lt;img&gt;</code>) have no closing tag and are common XSS sinks via attributes.</li></ul></div>';
+    echo '<div><strong>Example document outline</strong><div class="bypass-list">&lt;!doctype html&gt;\n&lt;html&gt;\n  &lt;head&gt;... metadata ...&lt;/head&gt;\n  &lt;body&gt;\n    &lt;h1&gt;Title&lt;/h1&gt;\n    &lt;a href="/profile?id=7"&gt;Profile&lt;/a&gt;\n  &lt;/body&gt;\n&lt;/html&gt;</div></div>';
+    echo '<div><strong>Why attackers care</strong><div class="small">If you can inject HTML, you can add new tags or attributes. That may give you a place to execute JavaScript (via <code>&lt;script&gt;</code>, event handlers, or dangerous URLs).</div></div>';
+    echo '</div>';
+    echo '<div class="section"><div class="section-title">The DOM: live objects representing the page</div><div class="small">When a browser parses HTML it creates a tree of nodes. JavaScript APIs manipulate this tree. Understanding node properties helps you predict where injected strings will land.</div></div>';
+    echo '<div class="meta meta-columns">';
+    echo '<div><strong>Key DOM terms</strong><ul class="lab-list"><li><em>Element nodes</em>: correspond to HTML tags and expose properties like <code>innerHTML</code> and <code>attributes</code>.</li><li><em>Text nodes</em>: represent literal text between tags.</li><li><em>Events</em>: actions like <code>click</code> or <code>load</code> that trigger handlers attached to nodes.</li></ul></div>';
+    echo '<div><strong>Inspecting the DOM</strong><div class="small">Open browser devtools → Elements tab. Hover over nodes to see their relationships. Right-click to edit HTML live and observe how the DOM updates instantly.</div><div class="callout">Challenge: change a button label by editing <code>innerText</code> in the console.</div></div>';
+    echo '<div><strong>DOM sinks that matter</strong><ul class="lab-list"><li><code>innerHTML</code> and <code>outerHTML</code> interpret strings as HTML.</li><li><code>document.write()</code> injects raw markup during page load.</li><li>Setting <code>href</code>, <code>src</code> or <code>data-*</code> attributes can trigger navigation or fetches.</li></ul></div>';
+    echo '</div>';
+    echo '<div class="section"><div class="section-title">JavaScript: behaviour layer</div><div class="small">Scripts run after the DOM exists (or as it loads) and can read, modify or execute strings. XSS aims to control this execution path.</div></div>';
+    echo '<div class="meta meta-columns">';
+    echo '<div><strong>Quick JavaScript primer</strong><ul class="lab-list"><li>Variables store data: <code>const payload = location.search;</code></li><li>Functions encapsulate behaviour: <code>function show(msg) { alert(msg); }</code></li><li>The DOM API is available via <code>document</code> and <code>window</code>.</li></ul></div>';
+    echo '<div><strong>Common vulnerable patterns</strong><div class="bypass-list">// Taking user input\nconst hash = location.hash.substring(1);\n// Writing it without escaping\ndocument.getElementById("content").innerHTML = decodeURIComponent(hash);</div><div class="small">Any user can control <code>location.hash</code> by editing the URL, so the resulting HTML executes.</div></div>';
+    echo '<div><strong>Essential browser APIs</strong><ul class="lab-list"><li><code>alert()</code> for proof-of-concept.</li><li><code>fetch()</code> or <code>XMLHttpRequest</code> for exfiltration.</li><li><code>localStorage</code>, <code>document.cookie</code> to read stored secrets.</li></ul></div>';
+    echo '</div>';
+    echo '<div class="section"><div class="section-title">Linking concepts to the labs</div><div class="small">With these basics you can reason about the attack surface: identify where HTML is generated, which DOM sinks are in play, and how JavaScript might execute injected data. Move on to the Reflected XSS lab and deliberately trace each step from input to sink.</div></div>';
+    echo '<div class="meta"><strong>Next steps</strong><ol class="lab-steps"><li>Use the Reflected XSS lab to practice following a value from request → response → DOM.</li><li>Repeat for Stored XSS and note the persistence layer.</li><li>Revisit this page whenever a concept feels fuzzy—treat it like your personal glossary.</li></ol></div>';
     footer_html();
     exit;
 }
@@ -214,6 +259,97 @@ if ($page === 'filter'){
         echo $filtered;
         echo '</div></div></div>';
     }
+    footer_html();
+    exit;
+}
+
+if ($page === 'playground'){
+    header_html('Practice playground', 'playground');
+    echo '<div class="section"><div class="section-title">Put the concepts to work</div><div class="small">Use these miniature applications to rehearse exploitation outside of the guided steps. Each scenario mirrors a real bug class and encourages you to apply reconnaissance, payload crafting and impact demonstration.</div></div>';
+    echo '<div class="section"><div class="section-title">How to approach the playground</div><ol class="lab-steps"><li>Skim the brief and predict where user input will land.</li><li>Attempt benign probes (<code>test</code>, <code>&lt;em&gt;</code>, quotes) before escalating.</li><li>Record working payloads and why they succeed—think about DOM vs. server rendering.</li><li>Reset the page with different payload styles (HTML, attribute, URL) to cement the concept.</li></ol></div>';
+
+    // Scenario 1: reflected search widget
+    $reflect = $_GET['reflect'] ?? '';
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 1: Help centre search (reflected)</div>';
+    echo '<div class="small">A support portal echoes the <code>q</code> parameter when no results are found. Demonstrate how reflected input leads to execution.</div>';
+    echo '<form method="GET" action="?"><input type="hidden" name="page" value="playground"><div class="form-row"><input class="input" name="reflect" data-field="reflect" placeholder="Search query"><span class="input-hint">Start with plain text, then try markup like &lt;img src onerror=alert(1)&gt;</span></div><div class="form-row"><button class="button">Search</button></div></form>';
+    echo '<div class="meta"><div class="meta-item" data-field="reflect"><strong>Investigation tips</strong><div class="small">View source after submitting. The query is injected inside a <code>&lt;div&gt;</code> without encoding, so HTML payloads execute immediately.</div></div></div>';
+    echo '<div class="results"><div class="results-title">Search response</div><div class="results-body">';
+    if ($reflect !== ''){
+        echo 'No results for: '.$reflect; // intentionally unsafe
+    } else {
+        echo '(Submit a query to see the reflection)';
+    }
+    echo '</div></div>';
+    echo '</div>';
+
+    // Scenario 2: community comment wall (stored)
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['scenario'] ?? '') === 'comment_wall'){
+        $name = trim($_POST['name'] ?? '');
+        $message = $_POST['message'] ?? '';
+        $payload = json_encode(['name'=>$name,'message'=>$message], JSON_UNESCAPED_UNICODE);
+        $stmt = $db->prepare('INSERT INTO playground_entries (scenario, content) VALUES (:scenario, :content)');
+        $stmt->execute([':scenario'=>'comment_wall', ':content'=>$payload]);
+        echo '<div class="notice success">Comment saved to the wall. Reload the page to observe stored execution.</div>';
+    }
+    $commentStmt = $db->prepare('SELECT id, created_at, content FROM playground_entries WHERE scenario = :scenario ORDER BY id DESC LIMIT 25');
+    $commentStmt->execute([':scenario'=>'comment_wall']);
+    $commentRows = $commentStmt->fetchAll(PDO::FETCH_ASSOC);
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 2: Community shoutbox (stored)</div>';
+    echo '<div class="small">Messages persist in the database and display for every visitor. Abuse the body field to deliver a self-firing payload.</div>';
+    echo '<form method="POST" action="?page=playground"><input type="hidden" name="scenario" value="comment_wall"><div class="form-row"><input class="input" name="name" data-field="pg-name" placeholder="Display name"><span class="input-hint">Your name is encoded safely.</span></div><div class="form-row"><textarea class="input" name="message" data-field="pg-message" rows="3" placeholder="Message (HTML allowed)"></textarea><span class="input-hint">Stored payload idea: &lt;script&gt;alert(\'stored\')&lt;/script&gt;</span></div><div class="form-row"><button class="button">Post message</button></div></form>';
+    echo '<div class="meta meta-columns"><div class="meta-item" data-field="pg-message"><strong>Recon questions</strong><ul class="lab-list"><li>Does the body render with <code>innerHTML</code> or server-side templating?</li><li>Can you craft a payload that steals another visitor&apos;s cookies?</li><li>What happens if you add an auto-submitting form to spread the worm?</li></ul></div><div><strong>Recent shoutbox entries</strong><div class="small">Everything below is rendered without sanitisation—perfect for verifying stored XSS.</div></div></div>';
+    echo '<div class="results"><div class="results-title">Wall feed</div>';
+    foreach ($commentRows as $row){
+        $decoded = json_decode($row['content'], true);
+        $name = htmlspecialchars($decoded['name'] ?? 'Anonymous');
+        $message = $decoded['message'] ?? '';
+        echo '<div class="wall-entry"><div class="small">#'.intval($row['id']).' • '.htmlspecialchars($row['created_at']).' • <strong>'.$name.'</strong></div><div class="wall-body">'.$message.'</div></div>';
+    }
+    if (count($commentRows) === 0){
+        echo '<div class="small">No entries yet. Be the first to store something.</div>';
+    }
+    echo '</div>';
+    echo '</div>';
+
+    // Scenario 3: client-side personalization (DOM)
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 3: Personalised dashboard (DOM)</div>';
+    echo '<div class="small">A dashboard stores your preferences in <code>localStorage</code> and uses them to build widgets with <code>innerHTML</code>. Tamper with the data to execute arbitrary scripts when the widget renders.</div>';
+    echo '<div class="form-row"><input class="input" id="playground-widget" data-field="pg-dom" placeholder="Widget title or payload"><span class="input-hint">Tip: payloads should be URL encoded when modifying storage manually.</span></div>';
+    echo '<div class="form-row"><button class="button" id="pg-save">Save preference</button><button class="button" id="pg-clear" style="background:rgba(255,255,255,0.1);color:#fff">Reset</button></div>';
+    echo '<div class="meta"><div class="meta-item" data-field="pg-dom"><strong>Experiment ideas</strong><div class="small">Open DevTools → Application → Local Storage. Edit <code>dashboard_widget</code> to inject HTML such as <code>&lt;img src onerror=alert(document.domain)&gt;</code> then refresh the page.</div></div></div>';
+    echo '<div class="results"><div class="results-title">Rendered widget</div><div id="pg-widget-output" class="results-body">(No widget stored yet)</div></div>';
+    echo '<script>(function(){
+        var input = document.getElementById("playground-widget");
+        var output = document.getElementById("pg-widget-output");
+        var saveBtn = document.getElementById("pg-save");
+        var clearBtn = document.getElementById("pg-clear");
+        function render(){
+            var saved = localStorage.getItem("dashboard_widget");
+            if (saved){
+                output.innerHTML = decodeURIComponent(saved);
+            } else {
+                output.textContent = "(No widget stored yet)";
+            }
+        }
+        saveBtn.addEventListener("click", function(e){
+            e.preventDefault();
+            localStorage.setItem("dashboard_widget", encodeURIComponent(input.value));
+            render();
+        });
+        clearBtn.addEventListener("click", function(e){
+            e.preventDefault();
+            localStorage.removeItem("dashboard_widget");
+            render();
+        });
+        render();
+    })();</script>';
+    echo '</div>';
+
+    echo '<div class="meta"><strong>Wrap-up</strong><ol class="lab-steps"><li>Reset each scenario and attempt different payload styles (event handlers, <code>javascript:</code> URLs, SVG).</li><li>Document which defences are missing and how you would fix them.</li><li>Share successful payloads back in the bypass library so future you can reuse them.</li></ol></div>';
     footer_html();
     exit;
 }

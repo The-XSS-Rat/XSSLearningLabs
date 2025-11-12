@@ -32,6 +32,32 @@ function filter_input_level($input, $level){
 }
 
 // helper for rendering header
+function render_xp_hud(){
+    echo '<div class="xp-hud" data-xp-hud>'; // container for XP tracker
+    echo '<div class="xp-hud-info">';
+    echo '<div class="xp-hud-level" id="xp-level">Level 1</div>';
+    echo '<div class="xp-hud-total" id="xp-total">0 XP</div>';
+    echo '</div>';
+    echo '<div class="xp-hud-progress">';
+    echo '<div class="xp-progress-bar"><div class="xp-progress-fill" id="xp-progress-fill" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div></div>';
+    echo '<button type="button" class="button xp-reset" id="xp-reset">Reset XP</button>';
+    echo '</div>';
+    echo '</div>';
+}
+
+function xp_marker($id, $label, $xp = 25){
+    $idAttr = htmlspecialchars($id, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $labelEsc = htmlspecialchars($label, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $xpVal = (int)$xp;
+    echo '<div class="xp-marker" data-xp-id="'.$idAttr.'" data-xp-award="'.$xpVal.'">';
+    echo '<div class="xp-marker-body">';
+    echo '<div class="xp-marker-label">'.$labelEsc.'</div>';
+    echo '<button type="button" class="button xp-button">Mark complete (+' . $xpVal . ' XP)</button>';
+    echo '</div>';
+    echo '<div class="xp-marker-status" aria-live="polite"></div>';
+    echo '</div>';
+}
+
 function header_html($title='XSS Lab', $active='home'){
     echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'.htmlspecialchars($title).'</title>';
     echo '<link rel="stylesheet" href="styles.css">';
@@ -68,6 +94,7 @@ function header_html($title='XSS Lab', $active='home'){
     echo '<main class="main-column">';
     echo '<div class="card surface-card">';
     echo '<div class="lab-title">'.htmlspecialchars($title).'</div>';
+    render_xp_hud();
 }
 
 // footer
@@ -86,6 +113,7 @@ if ($page === 'home'){
     echo '<div class="hero-title">Start from zero knowledge and grow into an XSS practitioner.</div>';
     echo '<div class="hero-body small">Follow the learning path: absorb the web fundamentals, practise every XSS flavour with checklists, then solidify your skills inside the sandbox playground.</div>';
     echo '</div>';
+    xp_marker('home-orientation', 'Reviewed the home orientation and learning path', 15);
     echo '<div class="meta meta-columns intro-columns">';
     echo '<div><strong>What you will learn</strong><div class="small">Understand how browsers build the Document Object Model (DOM), how HTML tags and attributes shape a page, and how JavaScript interacts with those nodes. Each lab references these ideas so you can connect theory with the exploit workflow.</div></div>';
     echo '<div><strong>Suggested learning order</strong><ol class="lab-steps"><li>Foundations &amp; concepts</li><li>Reflected, stored and DOM XSS labs</li><li>Filter lab + Contexts explorer</li><li>Playground scenarios and custom experiments</li></ol></div>';
@@ -118,6 +146,7 @@ if ($page === 'home'){
 if ($page === 'fundamentals'){
     header_html('Foundations & concepts', 'fundamentals');
     echo '<div class="section"><div class="section-title">Welcome to the web stack</div><div class="small">Before throwing payloads at inputs, understand how browsers interpret HTML, build the Document Object Model (DOM) and execute JavaScript. This foundation lets you reason about where user-controlled data travels.</div></div>';
+    xp_marker('fundamentals-overview', 'Studied the foundations and concepts overview', 20);
     echo '<div class="section"><div class="section-title">HTML: the structure layer</div><div class="small">HyperText Markup Language describes the layout of a page using nested tags. Each tag can carry attributes that store extra data. Browsers parse these tags into DOM nodes.</div></div>';
     echo '<div class="meta meta-columns">';
     echo '<div><strong>HTML essentials</strong><ul class="lab-list"><li><code>&lt;tag&gt;content&lt;/tag&gt;</code> wraps text or other elements.</li><li>Attributes like <code>href="..."</code> or <code>onclick="..."</code> live inside the opening tag.</li><li>Void elements (e.g. <code>&lt;img&gt;</code>) have no closing tag and are common XSS sinks via attributes.</li></ul></div>';
@@ -145,6 +174,7 @@ if ($page === 'fundamentals'){
 if ($page === 'reflected'){
     header_html('Reflected XSS', 'reflected');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Classic reflected XSS happens when user input is immediately returned in the HTTP response. Use the form below to trace the data flow and capture a working payload.</div></div>';
+    xp_marker('reflected-first-payload', 'Executed a reflected XSS payload', 30);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Map the reflected parameter using ?page=reflected&amp;q=test and observe the response.</li><li>Confirm raw HTML injection by attempting harmless tags like <code>&lt;em&gt;</code>.</li><li>Escalate to JavaScript execution with <code>&lt;script&gt;alert(1)&lt;/script&gt;</code> or event handler payloads.</li><li>Experiment with filter bypasses such as breaking out of attributes or using <code>&lt;img src onerror=alert(1)&gt;</code>.</ol></div>';
     // echo back GET param 'q' unsafely
     $q = $_GET['q'] ?? '';
@@ -164,6 +194,7 @@ if ($page === 'reflected'){
 if ($page === 'stored'){
     header_html('Stored XSS', 'stored');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Stored (persistent) XSS abuses server-side storage such as databases or comment systems. Inputs are saved and replayed to all viewers without sanitisation.</div></div>';
+    xp_marker('stored-exploit', 'Delivered a stored XSS payload', 35);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Publish a benign message and verify it appears below.</li><li>Inject HTML to validate that markup is preserved in storage.</li><li>Store a script payload so it runs when the page renders.</li><li>Refine your payload to steal cookies or demonstrate impact via the console.</li></ol></div>';
     // handle posting messages into sqlite
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title'])){
@@ -195,6 +226,7 @@ if ($page === 'dom'){
     header_html('DOM XSS', 'dom');
     // example using location.hash insertion into innerHTML
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">DOM-based XSS executes entirely in the browser when JavaScript reads untrusted data and writes it to a sink without sanitising.</div></div>';
+    xp_marker('dom-sink', 'Abused a DOM XSS sink', 30);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Review the inline script to identify the sink (<code>innerHTML</code>).</li><li>Modify the hash using the control below or straight in the URL bar.</li><li>Observe how the sink renders decoded content from <code>location.hash</code>.</li><li>Deliver payloads such as <code>#%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E</code> and watch them fire.</li></ol></div>';
     echo '<div class="form-row"><input class="input" id="dom-input" data-field="dom-input" placeholder="Change the URL hash or try a payload"><span class="input-hint">Hint: hashes are URL encoded. Use %3C for &lt;.</span></div>';
     echo '<div class="form-row"><button class="button" onclick="location.hash = document.getElementById(\'dom-input\').value">Set hash</button></div>';
@@ -216,6 +248,7 @@ if ($page === 'dom'){
 if ($page === 'blind'){
     header_html('Blind XSS', 'blind');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Blind XSS payloads execute on a separate system (e.g. admin panel) and cannot be observed directly. Instead, the payload must exfiltrate to a controlled endpoint like the logger below.</div></div>';
+    xp_marker('blind-callback', 'Captured a blind XSS callback', 40);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Craft a payload that makes an outbound request to <code>/blind_logger.php</code>.</li><li>Deliver the payload to a hypothetical support system or admin portal.</li><li>Monitor the log to confirm when an unsuspecting victim loads it.</li><li>Extract contextual data (cookies, DOM, CSRF tokens) in the payload and send them to the logger.</li></ol></div>';
     echo '<form method="GET" action="?page=blind"><div class="form-row"><input class="input" name="payload" data-field="payload" placeholder="Example: &lt;img src=\'/blind_logger.php?p=1\'&gt;"><span class="input-hint">Try using fetch or new Image() for stealth.</span></div><div class="form-row"><button class="button">Preview payload</button></div></form>';
     $payload = $_GET['payload'] ?? '';
@@ -236,23 +269,35 @@ if ($page === 'blind'){
 }
 
 if ($page === 'filter'){
+    $allowedLevels = ['none','naive','strip_tags','regex','encode'];
+    $level = $_GET['level'] ?? 'none';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST'){
+        $postedLevel = $_POST['level'] ?? $_POST['level_select'] ?? null;
+        if ($postedLevel !== null && in_array($postedLevel, $allowedLevels, true)){
+            $level = $postedLevel;
+        }
+    }
+    if (!in_array($level, $allowedLevels, true)){
+        $level = 'none';
+    }
+    $levelQuery = urlencode($level);
     header_html('Filter Lab', 'filter');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Use the filter lab to understand how different server-side defences behave. Submit payloads and compare the raw, filtered and rendered output.</div></div>';
+    xp_marker('filter-bypass', 'Bypassed a filter level', 35);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Select a filter level to see how it transforms your input.</li><li>Test known payloads from the bypass library against each level.</li><li>Document which encodings or transformations defeat the filter.</li><li>Consider the impact if the filtered output is placed into various contexts.</li></ol></div>';
-    $level = $_GET['level'] ?? 'none';
-    $input = $_POST['input'] ?? null;
-    echo '<form method="POST" action="?page=filter&level='.urlencode($level).'">';
-    echo '<div class="form-row"><label class="small">Filter level:</label><select name="level_select" onchange="this.form.submit()"><option value="none" '.($level==='none'?'selected':'').'>none (vulnerable)</option><option value="naive" '.($level==='naive'?'selected':'').'>naive (strip &lt;script&gt; and on* handlers)</option><option value="strip_tags" '.($level==='strip_tags'?'selected':'').'>strip_tags()</option><option value="regex" '.($level==='regex'?'selected':'').'>regex (remove &lt; &gt; and javascript:)</option><option value="encode" '.($level==='encode'?'selected':'').'>encode (htmlspecialchars)</option></select><span class="input-hint">Changes auto-submit so you can compare levels quickly.</span></div>';
+    echo '<form method="GET" action="">';
+    echo '<input type="hidden" name="page" value="filter">';
+    echo '<div class="form-row"><label class="small">Filter level:</label><select name="level" onchange="this.form.submit()"><option value="none" '.($level==='none'?'selected':'').'>none (vulnerable)</option><option value="naive" '.($level==='naive'?'selected':'').'>naive (strip &lt;script&gt; and on* handlers)</option><option value="strip_tags" '.($level==='strip_tags'?'selected':'').'>strip_tags()</option><option value="regex" '.($level==='regex'?'selected':'').'>regex (remove &lt; &gt; and javascript:)</option><option value="encode" '.($level==='encode'?'selected':'').'>encode (htmlspecialchars)</option></select><span class="input-hint">Changes auto-submit so you can compare levels quickly.</span></div>';
     echo '</form>';
     // accept input and show before/after and render result sink
-    echo '<form method="POST" action="?page=filter&level='.urlencode($level).'"><div class="form-row"><textarea class="input" name="input" data-field="filter-input" rows="4" placeholder="Try payloads here"></textarea><span class="input-hint">Try: &lt;svg onload=alert(1)&gt;</span></div><div class="form-row"><button class="button">Run through filter</button></div></form>';
+    echo '<form method="POST" action="?page=filter&level='.$levelQuery.'">';
+    echo '<input type="hidden" name="level" value="'.htmlspecialchars($level, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'">';
+    echo '<div class="form-row"><textarea class="input" name="input" data-field="filter-input" rows="4" placeholder="Try payloads here"></textarea><span class="input-hint">Try: &lt;svg onload=alert(1)&gt;</span></div><div class="form-row"><button class="button">Run through filter</button></div>';
+    echo '</form>';
     if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['input'])){
-        $lvl = $_GET['level'] ?? 'none';
-        // respect selection change via form that set level_select
-        if (!empty($_POST['level_select'])) $lvl = $_POST['level_select'];
         $raw = $_POST['input'];
-        $filtered = filter_input_level($raw, $lvl);
-        echo '<div class="meta"><strong>Server-side filter applied:</strong> '.htmlspecialchars($lvl).'<div class="callout">Does the filtered result still execute? Use the rendered sink to confirm.</div></div>';
+        $filtered = filter_input_level($raw, $level);
+        echo '<div class="meta"><strong>Server-side filter applied:</strong> '.htmlspecialchars($level).'<div class="callout">Does the filtered result still execute? Use the rendered sink to confirm.</div></div>';
         echo '<div class="results"><div class="results-title">Analysis</div><div class="analysis-grid">';
         echo '<div><div class="analysis-label">Raw input</div><div class="bypass-list">'.htmlspecialchars($raw).'</div></div>';
         echo '<div><div class="analysis-label">Filtered output</div><div class="bypass-list">'.htmlspecialchars($filtered).'</div></div>';
@@ -276,6 +321,7 @@ if ($page === 'playground'){
     echo '<div class="card scenario">';
     echo '<div class="section-title">Scenario 1: Help centre search (reflected)</div>';
     echo '<div class="small">A support portal echoes the <code>q</code> parameter when no results are found. Demonstrate how reflected input leads to execution.</div>';
+    xp_marker('playground-s1', 'Solved Scenario 1: Help centre search', 25);
     echo '<form method="GET" action="?"><input type="hidden" name="page" value="playground"><div class="form-row"><input class="input" name="reflect" data-field="reflect" placeholder="Search query"><span class="input-hint">Start with plain text, then try markup like &lt;img src onerror=alert(1)&gt;</span></div><div class="form-row"><button class="button">Search</button></div></form>';
     echo '<div class="meta"><div class="meta-item" data-field="reflect"><strong>Investigation tips</strong><div class="small">View source after submitting. The query is injected inside a <code>&lt;div&gt;</code> without encoding, so HTML payloads execute immediately.</div></div></div>';
     echo '<div class="results"><div class="results-title">Search response</div><div class="results-body">';
@@ -302,6 +348,7 @@ if ($page === 'playground'){
     echo '<div class="card scenario">';
     echo '<div class="section-title">Scenario 2: Community shoutbox (stored)</div>';
     echo '<div class="small">Messages persist in the database and display for every visitor. Abuse the body field to deliver a self-firing payload.</div>';
+    xp_marker('playground-s2', 'Stored payload in Scenario 2 shoutbox', 30);
     echo '<form method="POST" action="?page=playground"><input type="hidden" name="scenario" value="comment_wall"><div class="form-row"><input class="input" name="name" data-field="pg-name" placeholder="Display name"><span class="input-hint">Your name is encoded safely.</span></div><div class="form-row"><textarea class="input" name="message" data-field="pg-message" rows="3" placeholder="Message (HTML allowed)"></textarea><span class="input-hint">Stored payload idea: &lt;script&gt;alert(\'stored\')&lt;/script&gt;</span></div><div class="form-row"><button class="button">Post message</button></div></form>';
     echo '<div class="meta meta-columns"><div class="meta-item" data-field="pg-message"><strong>Recon questions</strong><ul class="lab-list"><li>Does the body render with <code>innerHTML</code> or server-side templating?</li><li>Can you craft a payload that steals another visitor&apos;s cookies?</li><li>What happens if you add an auto-submitting form to spread the worm?</li></ul></div><div><strong>Recent shoutbox entries</strong><div class="small">Everything below is rendered without sanitisation—perfect for verifying stored XSS.</div></div></div>';
     echo '<div class="results"><div class="results-title">Wall feed</div>';
@@ -321,6 +368,7 @@ if ($page === 'playground'){
     echo '<div class="card scenario">';
     echo '<div class="section-title">Scenario 3: Personalised dashboard (DOM)</div>';
     echo '<div class="small">A dashboard stores your preferences in <code>localStorage</code> and uses them to build widgets with <code>innerHTML</code>. Tamper with the data to execute arbitrary scripts when the widget renders.</div>';
+    xp_marker('playground-s3', 'Exploded Scenario 3 dashboard widget', 30);
     echo '<div class="form-row"><input class="input" id="playground-widget" data-field="pg-dom" placeholder="Widget title or payload"><span class="input-hint">Tip: payloads should be URL encoded when modifying storage manually.</span></div>';
     echo '<div class="form-row"><button class="button" id="pg-save">Save preference</button><button class="button" id="pg-clear" style="background:rgba(255,255,255,0.1);color:#fff">Reset</button></div>';
     echo '<div class="meta"><div class="meta-item" data-field="pg-dom"><strong>Experiment ideas</strong><div class="small">Open DevTools → Application → Local Storage. Edit <code>dashboard_widget</code> to inject HTML such as <code>&lt;img src onerror=alert(document.domain)&gt;</code> then refresh the page.</div></div></div>';
@@ -352,7 +400,200 @@ if ($page === 'playground'){
     })();</script>';
     echo '</div>';
 
-    echo '<div class="meta"><strong>Wrap-up</strong><ol class="lab-steps"><li>Reset each scenario and attempt different payload styles (event handlers, <code>javascript:</code> URLs, SVG).</li><li>Document which defences are missing and how you would fix them.</li><li>Share successful payloads back in the bypass library so future you can reuse them.</li></ol></div>';
+    // Scenario 4: attribute injection badge (easy)
+    $badge = $_GET['badge'] ?? '';
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 4 (Easy): Profile badge (attribute reflection)</div>';
+    echo '<div class="small">Marketing wants dynamic badges. The value you supply is copied into multiple HTML attributes without escaping. Break out of the attribute to hijack the markup.</div>';
+    xp_marker('playground-s4', 'Escaped Scenario 4 profile badge attributes', 25);
+    echo '<form method="GET" action="?"><input type="hidden" name="page" value="playground"><div class="form-row"><input class="input" name="badge" value="'.htmlspecialchars($badge, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" placeholder="Badge text or payload"><span class="input-hint">Try closing the attribute with <code>"</code> then injecting <code>onmouseover</code>.</span></div><div class="form-row"><button class="button">Render badge</button></div></form>';
+    echo '<div class="meta"><strong>Recon focus</strong><div class="small">Inspect the HTML to see how the value lands inside <code>title</code> and <code>data-badge</code> attributes. Attribute context payloads often need quotes and whitespace tricks.</div></div>';
+    echo '<div class="results"><div class="results-title">Badge preview</div><div class="results-body"><div class="badge-preview" title="'.$badge.'" data-badge="'.$badge.'">Champion '.$badge.'</div></div></div>';
+    echo '</div>';
+
+    // Scenario 5: inline script preview (easy -> medium)
+    $landingHeadline = '';
+    $landingSubhead = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['scenario'] ?? '') === 'landing_preview'){
+        $landingHeadline = $_POST['headline'] ?? '';
+        $landingSubhead = $_POST['subhead'] ?? '';
+    }
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 5 (Easy→Medium): Landing page preview (inline script)</div>';
+    echo '<div class="small">The product team writes copy and previews it instantly. Inputs are concatenated into a JavaScript string and pushed into <code>innerHTML</code> without encoding.</div>';
+    xp_marker('playground-s5', 'Broke out of Scenario 5 inline script', 30);
+    echo '<form method="POST" action="?page=playground"><input type="hidden" name="scenario" value="landing_preview"><div class="form-row"><input class="input" name="headline" value="'.htmlspecialchars($landingHeadline, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" placeholder="Headline"><span class="input-hint">Inject <code>";alert(1);//</code> to escape the string.</span></div><div class="form-row"><input class="input" name="subhead" value="'.htmlspecialchars($landingSubhead, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" placeholder="Sub headline"><span class="input-hint">Experiment with closing tags like <code>&lt;/h3&gt;</code>.</span></div><div class="form-row"><button class="button">Preview copy</button></div></form>';
+    echo '<div class="results"><div class="results-title">Preview output</div><div id="landing-preview" class="results-body">(Submit copy to build the preview)</div></div>';
+    if ($landingHeadline !== '' || $landingSubhead !== ''){
+        echo '<script>var landingHeadline = "'.$landingHeadline.'";var landingSubhead = "'.$landingSubhead.'";document.getElementById("landing-preview").innerHTML = "<h3>" + landingHeadline + "</h3><p>" + landingSubhead + "</p>";</script>';
+    }
+    echo '</div>';
+
+    // Scenario 6: markdown previewer with naive filtering (medium)
+    $markdownInput = '';
+    $markdownFiltered = null;
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['scenario'] ?? '') === 'markdown_preview'){
+        $markdownInput = $_POST['markdown'] ?? '';
+        $markdownFiltered = filter_input_level($markdownInput, 'naive');
+    }
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 6 (Medium): Markdown helper with naive sanitiser</div>';
+    echo '<div class="small">Writers can preview Markdown, but the sanitiser only strips <code>&lt;script&gt;</code> tags and obvious <code>on*</code> attributes. Discover vectors that slip through.</div>';
+    xp_marker('playground-s6', 'Defeated Scenario 6 markdown sanitiser', 35);
+    echo '<form method="POST" action="?page=playground"><input type="hidden" name="scenario" value="markdown_preview"><div class="form-row"><textarea class="input" name="markdown" rows="4" placeholder="Markdown or payload">'.htmlspecialchars($markdownInput, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</textarea><span class="input-hint">Hint: SVG <code>onload</code> survives the naive filter.</span></div><div class="form-row"><button class="button">Render preview</button></div></form>';
+    if ($markdownFiltered !== null){
+        echo '<div class="results"><div class="results-title">Sanitiser analysis</div><div class="analysis-grid"><div><div class="analysis-label">Raw input</div><div class="bypass-list">'.htmlspecialchars($markdownInput, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div></div><div><div class="analysis-label">Filtered output</div><div class="bypass-list">'.htmlspecialchars($markdownFiltered, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div></div></div><div class="results-sink"><div class="analysis-label">Rendered preview</div><div class="sink-output">'.$markdownFiltered.'</div></div></div>';
+    }
+    echo '</div>';
+
+    // Scenario 7: stored support chat with double decoding (medium)
+    $supportChatNotice = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['scenario'] ?? '') === 'support_chat'){
+        $agent = trim($_POST['agent'] ?? '');
+        $chatMessage = $_POST['chat_message'] ?? '';
+        $payload = json_encode(['agent'=>$agent,'message'=>$chatMessage], JSON_UNESCAPED_UNICODE);
+        $stmt = $db->prepare('INSERT INTO playground_entries (scenario, content) VALUES (:scenario, :content)');
+        $stmt->execute([':scenario'=>'support_chat', ':content'=>$payload]);
+        $supportChatNotice = '<div class="notice success">Transcript updated. The viewer will decode the content twice—perfect for encoded payloads.</div>';
+    }
+    $supportStmt = $db->prepare('SELECT id, created_at, content FROM playground_entries WHERE scenario = :scenario ORDER BY id DESC LIMIT 20');
+    $supportStmt->execute([':scenario'=>'support_chat']);
+    $supportRows = $supportStmt->fetchAll(PDO::FETCH_ASSOC);
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 7 (Medium): Support chat transcript (stored)</div>';
+    echo '<div class="small">Logs are kept for audits. Operators paste URL-encoded payloads which the viewer <code>urldecode</code>s twice before display.</div>';
+    xp_marker('playground-s7', 'Weaponised Scenario 7 support transcript', 35);
+    if ($supportChatNotice !== ''){
+        echo $supportChatNotice;
+    }
+    echo '<form method="POST" action="?page=playground"><input type="hidden" name="scenario" value="support_chat"><div class="form-row"><input class="input" name="agent" placeholder="Agent name"><span class="input-hint">Agent names are encoded safely.</span></div><div class="form-row"><textarea class="input" name="chat_message" rows="3" placeholder="Chat message (will be double decoded)"></textarea><span class="input-hint">Tip: store <code>%253Csvg/onload=alert(1)%253E</code>.</span></div><div class="form-row"><button class="button">Append message</button></div></form>';
+    echo '<div class="results"><div class="results-title">Transcript viewer</div>';
+    if (count($supportRows) === 0){
+        echo '<div class="small">No support chats yet. Seed one with an encoded payload.</div>';
+    }
+    foreach ($supportRows as $row){
+        $decoded = json_decode($row['content'], true);
+        $agentName = htmlspecialchars($decoded['agent'] ?? 'Anon');
+        $messageRaw = $decoded['message'] ?? '';
+        $rendered = rawurldecode(rawurldecode($messageRaw));
+        echo '<div class="wall-entry"><div class="small">#'.intval($row['id']).' • '.htmlspecialchars($row['created_at']).' • <strong>'.$agentName.'</strong></div><div class="wall-body">'.$rendered.'</div></div>';
+    }
+    echo '</div>';
+    echo '</div>';
+
+    // Scenario 8: DOM widget via query parameter (medium-hard)
+    $widget = $_GET['widget'] ?? '';
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 8 (Medium→Hard): Query-driven widget (DOM)</div>';
+    echo '<div class="small">A marketing widget reads <code>?widget=</code> and drops it directly into a dashboard slot. Assume the CMS controls the value—but you can override it.</div>';
+    xp_marker('playground-s8', 'Injected Scenario 8 query widget', 35);
+    echo '<form method="GET" action="?"><input type="hidden" name="page" value="playground"><div class="form-row"><input class="input" name="widget" value="'.htmlspecialchars($widget, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" placeholder="Widget markup or payload"><span class="input-hint">Deliver HTML or script snippets via the URL.</span></div><div class="form-row"><button class="button">Load widget</button></div></form>';
+    echo '<div class="results"><div class="results-title">Widget container</div><div id="widget-preview" class="results-body">(Set <code>?widget=</code> to populate this box)</div></div>';
+    echo '<script>(function(){var params=new URLSearchParams(window.location.search);var widget=params.get("widget");if(widget){document.getElementById("widget-preview").innerHTML=widget;}})();</script>';
+    echo '</div>';
+
+    // Scenario 9: analytics config in inline script (hard)
+    $analyticsId = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['scenario'] ?? '') === 'analytics_config'){
+        $analyticsId = $_POST['analytics_id'] ?? '';
+    }
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 9 (Hard): Legacy analytics config (inline JS)</div>';
+    echo '<div class="small">Operations paste an analytics ID that lands inside a script assignment. There is no escaping—close the string and run your own code.</div>';
+    xp_marker('playground-s9', 'Escalated Scenario 9 analytics config', 40);
+    echo '<form method="POST" action="?page=playground"><input type="hidden" name="scenario" value="analytics_config"><div class="form-row"><input class="input" name="analytics_id" value="'.htmlspecialchars($analyticsId, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" placeholder="Analytics ID"><span class="input-hint">Try payloads like <code>"};alert(1);//</code>.</span></div><div class="form-row"><button class="button">Generate snippet</button></div></form>';
+    echo '<div class="results"><div class="results-title">Generated script</div><div class="results-body"><pre>';
+    if ($analyticsId === ''){
+        echo 'window.analyticsConfig = { id: "YOUR-ID", sampleRate: 0.5 };';
+    } else {
+        echo 'window.analyticsConfig = { id: "'.$analyticsId.'", sampleRate: 0.5 };';
+    }
+    echo '</pre></div></div>';
+    if ($analyticsId !== ''){
+        echo '<script>window.analyticsConfig = { id: "'.$analyticsId.'", sampleRate: 0.5 };</script>';
+    }
+    echo '</div>';
+
+    // Scenario 10: CSS injection (hard)
+    $cssNote = $_GET['cssnote'] ?? '';
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 10 (Hard): Inline CSS memo</div>';
+    echo '<div class="small">A style attribute is assembled from user input to let managers tweak colours. Abuse CSS escapes or <code>url()</code> tricks to trigger script execution in older browsers.</div>';
+    xp_marker('playground-s10', 'Abused Scenario 10 CSS injection', 40);
+    echo '<form method="GET" action="?"><input type="hidden" name="page" value="playground"><div class="form-row"><input class="input" name="cssnote" value="'.htmlspecialchars($cssNote, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" placeholder="CSS fragment"><span class="input-hint">Start with harmless values, then attempt <code>background:url(javascript:...)</code>.</span></div><div class="form-row"><button class="button">Render memo</button></div></form>';
+    echo '<div class="results"><div class="results-title">Memo card</div><div class="results-body"><div class="memo-card" style="padding:14px;border-radius:12px;background:rgba(17,28,45,0.6);'.$cssNote.'">Team reminder: sanitise everything.</div></div></div>';
+    echo '</div>';
+
+    // Scenario 11: stored email template with entity decode (hard)
+    $emailNotice = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['scenario'] ?? '') === 'email_template'){
+        $subject = trim($_POST['subject'] ?? '');
+        $body = $_POST['body'] ?? '';
+        $payload = json_encode(['subject'=>$subject,'body'=>$body], JSON_UNESCAPED_UNICODE);
+        $stmt = $db->prepare('INSERT INTO playground_entries (scenario, content) VALUES (:scenario, :content)');
+        $stmt->execute([':scenario'=>'email_template', ':content'=>$payload]);
+        $emailNotice = '<div class="notice success">Template saved. The preview uses <code>html_entity_decode</code> which revives encoded payloads.</div>';
+    }
+    $emailStmt = $db->prepare('SELECT id, created_at, content FROM playground_entries WHERE scenario = :scenario ORDER BY id DESC LIMIT 10');
+    $emailStmt->execute([':scenario'=>'email_template']);
+    $emailRows = $emailStmt->fetchAll(PDO::FETCH_ASSOC);
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 11 (Hard): Email broadcast builder (stored)</div>';
+    echo '<div class="small">Marketers encode dangerous characters before saving, but the preview conveniently calls <code>html_entity_decode</code> for readability.</div>';
+    xp_marker('playground-s11', 'Revived Scenario 11 encoded payload', 40);
+    if ($emailNotice !== ''){
+        echo $emailNotice;
+    }
+    echo '<form method="POST" action="?page=playground"><input type="hidden" name="scenario" value="email_template"><div class="form-row"><input class="input" name="subject" placeholder="Email subject"><span class="input-hint">Subjects are escaped correctly.</span></div><div class="form-row"><textarea class="input" name="body" rows="4" placeholder="Email body (HTML allowed)"></textarea><span class="input-hint">Store <code>&amp;lt;img src=x onerror=alert(1)&amp;gt;</code> to revive later.</span></div><div class="form-row"><button class="button">Save template</button></div></form>';
+    echo '<div class="results"><div class="results-title">Template preview</div>';
+    if (count($emailRows) === 0){
+        echo '<div class="small">No templates yet. Save one to populate the preview.</div>';
+    }
+    foreach ($emailRows as $row){
+        $decoded = json_decode($row['content'], true);
+        $subject = htmlspecialchars($decoded['subject'] ?? '(no subject)');
+        $body = $decoded['body'] ?? '';
+        $previewBody = html_entity_decode($body, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        echo '<div class="wall-entry"><div class="small">#'.intval($row['id']).' • '.htmlspecialchars($row['created_at']).' • <strong>'.$subject.'</strong></div><div class="wall-body">'.$previewBody.'</div></div>';
+    }
+    echo '</div>';
+    echo '</div>';
+
+    // Scenario 12: hash router (expert)
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 12 (Expert): Hash-driven router (DOM)</div>';
+    echo '<div class="small">A single-page app loads modules based on <code>location.hash</code>. Whatever sits after <code>#</code> is decoded and pushed into <code>innerHTML</code>.</div>';
+    xp_marker('playground-s12', 'Hijacked Scenario 12 hash router', 45);
+    echo '<div class="form-row"><input class="input" id="hash-input" placeholder="Fragment payload"><span class="input-hint">Idea: <code>#%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E</code>.</span></div>';
+    echo '<div class="form-row"><button class="button" id="hash-apply">Update hash</button></div>';
+    echo '<div class="results"><div class="results-title">Router outlet</div><div id="hash-outlet" class="results-body">(No fragment set)</div></div>';
+    echo '<script>(function(){var input=document.getElementById("hash-input");var apply=document.getElementById("hash-apply");var outlet=document.getElementById("hash-outlet");function render(){var frag=location.hash.slice(1);if(frag){outlet.innerHTML=decodeURIComponent(frag);}else{outlet.textContent="(No fragment set)";}}apply.addEventListener("click",function(e){e.preventDefault();location.hash=input.value;});window.addEventListener("hashchange",render);render();})();</script>';
+    echo '</div>';
+
+    // Scenario 13: template literal injection (expert)
+    $templateLiteral = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['scenario'] ?? '') === 'template_literal'){
+        $templateLiteral = $_POST['template_payload'] ?? '';
+    }
+    echo '<div class="card scenario">';
+    echo '<div class="section-title">Scenario 13 (Expert): Template literal helper</div>';
+    echo '<div class="small">Developers stuff untrusted input into ES6 template literals to render toast messages. Break out using backticks or <code>${...}</code> expressions.</div>';
+    xp_marker('playground-s13', 'Popped Scenario 13 template literal', 45);
+    echo '<form method="POST" action="?page=playground"><input type="hidden" name="scenario" value="template_literal"><div class="form-row"><textarea class="input" name="template_payload" rows="3" placeholder="Message or payload">'.htmlspecialchars($templateLiteral, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</textarea><span class="input-hint">Try: <code>`;alert(document.domain);//</code>.</span></div><div class="form-row"><button class="button">Render toast</button></div></form>';
+    echo '<div class="results"><div class="results-title">Script output</div>';
+    if ($templateLiteral === ''){
+        echo '<div class="results-body"><pre>const message = `Welcome back!`;
+showToast(message);</pre></div>';
+    } else {
+        echo '<div class="results-body"><pre>const message = `'.$templateLiteral.'`;
+showToast(message);</pre></div>';
+        echo '<script>const message = `'.$templateLiteral.'`;if(window.console){console.log("Toast:", message);}</script>';
+    }
+    echo '</div>';
+    echo '</div>';
+
+    xp_marker('playground-finale', 'Completed the 13-scenario playground gauntlet', 60);
+    echo '<div class="meta"><strong>Wrap-up</strong><ol class="lab-steps"><li>Work through scenarios 1 → 13 to feel the escalation from easy reflections to expert-only template escapes.</li><li>Reset each scenario and attempt different payload styles (event handlers, <code>javascript:</code> URLs, encoded attacks).</li><li>Document which defences are missing and how you would fix them. Share successful payloads back in the bypass library so future you can reuse them.</li></ol></div>';
     footer_html();
     exit;
 }
@@ -360,6 +601,7 @@ if ($page === 'playground'){
 if ($page === 'contexts'){
     header_html('XSS Contexts Explorer', 'contexts');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Payload behaviour changes depending on the surrounding context. Use this explorer to see how the same string behaves in multiple locations.</div></div>';
+    xp_marker('contexts-tour', 'Mapped payload behaviour across contexts', 30);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Input a payload that mixes quotes, tags and JavaScript.</li><li>Note which contexts render, escape or break on your payload.</li><li>Adjust encoding to target specific contexts (attribute vs. JS string etc.).</li><li>Record working variants for future engagements.</li></ol></div>';
     // contexts: html body, attribute, js string, url param, style
     echo '<form method="GET" action="?page=contexts">';
@@ -385,6 +627,7 @@ if ($page === 'bypasses'){
     $bf = __DIR__ . '/bypasses.txt';
     $content = is_file($bf) ? file_get_contents($bf) : 'No bypass file found.';
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">A grab bag of payloads for when filters attempt to block scripts. Start with the basics then escalate to more obscure vectors.</div></div>';
+    xp_marker('bypass-library', 'Logged new payloads in the bypass library', 25);
     echo '<div class="section"><div class="section-title">How to practice</div><ol class="lab-steps"><li>Load a filter level in the Filter Lab.</li><li>Work down the list until one executes.</li><li>Note why it worked (protocol change, event handler, SVG, etc.).</li><li>Craft your own variant and append it to the list for future runs.</li></ol></div>';
     echo '<div class="results bypass-list" style="margin-top:10px">'.htmlspecialchars($content).'</div>';
     footer_html();

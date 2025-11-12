@@ -20,6 +20,7 @@
   --outline:rgba(255,255,255,0.12);
 }
 html,body{height:100%;margin:0;font-family:'Inter','Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#e8f0ff}
+[hidden]{display:none!important}
 body.app-shell{background:radial-gradient(circle at top,rgba(122,182,255,0.25),transparent 50%),radial-gradient(circle at bottom,rgba(255,123,166,0.12),transparent 55%),linear-gradient(180deg,var(--bg),#03050c 70%);min-height:100%;position:relative;overflow-x:hidden}
 .background-glow{position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 20% 20%,rgba(255,123,166,0.28),transparent 55%),radial-gradient(circle at 80% 30%,rgba(122,182,255,0.22),transparent 45%),radial-gradient(circle at 50% 80%,rgba(255,187,132,0.14),transparent 60%);filter:blur(0);z-index:0}
 .background-grid{position:fixed;inset:0;pointer-events:none;background-image:linear-gradient(transparent calc(100% - 1px),rgba(255,255,255,0.04) 1px),linear-gradient(90deg,transparent calc(100% - 1px),rgba(255,255,255,0.04) 1px);background-size:120px 120px;opacity:.3;mask-image:radial-gradient(circle at center,rgba(0,0,0,0.9),transparent 75%);z-index:1}
@@ -197,6 +198,16 @@ a{color:inherit}
 .wall-entry{padding:10px;margin-bottom:10px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.03)}
 .wall-body{margin-top:6px}
 .scenario .button + .button{margin-left:8px}
+.random-meta strong{display:block;margin-bottom:6px;color:#f6f9ff;letter-spacing:.08em;text-transform:uppercase;font-size:12px}
+.random-filter-name{font-weight:600;color:#f6f9ff}
+.random-step-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:6px}
+.random-step-table th,.random-step-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.06);text-align:left;vertical-align:top}
+.random-step-table th{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);background:rgba(255,255,255,0.02)}
+.random-step-table pre{margin:0;font-family:SFMono-Regular,Consolas,Monaco,monospace;white-space:pre-wrap;word-break:break-word;background:#050c14;border-radius:10px;padding:10px;border:1px solid rgba(255,255,255,0.05)}
+.random-step-label{font-weight:600;color:#f8fbff;letter-spacing:.03em}
+.random-step-status{margin-top:4px;color:var(--muted);font-size:11px;letter-spacing:.05em;text-transform:uppercase}
+.random-step-table tr.is-unchanged td{opacity:.75}
+.random-step-table tr.is-blocked td{background:rgba(255,123,123,0.12)}
 .intro-columns strong{display:block;margin-bottom:6px;color:#f8fbff}
 .intro-columns .small{line-height:1.55}
 

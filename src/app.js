@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
   };
 
   const xpStore = {
-    data: { total: 0, completed: {} },
+    data: { total: 0, completed: {}, tipsUsed: {} },
     load(){
       let raw = null;
       try {
@@ -131,9 +131,10 @@ document.addEventListener('DOMContentLoaded', ()=>{
           if (typeof parsed === 'object' && parsed){
             this.data.total = Number.isFinite(parsed.total) ? parsed.total : 0;
             this.data.completed = parsed.completed && typeof parsed.completed === 'object' ? parsed.completed : {};
+            this.data.tipsUsed = parsed.tipsUsed && typeof parsed.tipsUsed === 'object' ? parsed.tipsUsed : {};
           }
         } catch (err) {
-          this.data = { total: 0, completed: {} };
+          this.data = { total: 0, completed: {}, tipsUsed: {} };
         }
       }
     },
@@ -145,6 +146,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
         // ignore storage quota errors
       }
       writeCookie(payload);
+    },
+    ensureTipStore(){
+      if (!this.data.tipsUsed || typeof this.data.tipsUsed !== 'object'){
+        this.data.tipsUsed = {};
+      }
     },
     award(id, amount){
       if (!id || this.data.completed[id]){
@@ -162,8 +168,29 @@ document.addEventListener('DOMContentLoaded', ()=>{
       this.save();
       return true;
     },
+    spendTip(id, amount){
+      const numericAmount = Number.isFinite(amount) ? amount : 0;
+      if (!id || numericAmount <= 0){
+        return { ok: false, reason: 'invalid' };
+      }
+      this.ensureTipStore();
+      if (this.data.tipsUsed[id]){
+        return { ok: true, already: true };
+      }
+      const total = Math.max(0, Math.round(this.data.total));
+      if (total < numericAmount){
+        return { ok: false, reason: 'insufficient' };
+      }
+      this.data.total = total - numericAmount;
+      this.data.tipsUsed[id] = {
+        cost: numericAmount,
+        unlockedAt: new Date().toISOString()
+      };
+      this.save();
+      return { ok: true, spent: numericAmount };
+    },
     reset(){
-      this.data = { total: 0, completed: {} };
+      this.data = { total: 0, completed: {}, tipsUsed: {} };
       this.save();
     }
   };
@@ -175,14 +202,19 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const progressFill = document.getElementById('xp-progress-fill');
   const resetBtn = document.getElementById('xp-reset');
   const xpHudEl = document.querySelector('[data-xp-hud]');
+  let updateScenarioLocks = () => {};
 
-  const showXpPop = (amount) => {
-    if (!xpHudEl || !Number.isFinite(amount) || amount <= 0){
+  const showXpDelta = (amount) => {
+    if (!xpHudEl || !Number.isFinite(amount) || amount === 0){
       return;
     }
     const pop = document.createElement('div');
     pop.className = 'xp-pop';
-    pop.textContent = `+${amount} XP`;
+    if (amount < 0){
+      pop.classList.add('is-negative');
+    }
+    const prefix = amount > 0 ? '+' : '';
+    pop.textContent = `${prefix}${amount} XP`;
     xpHudEl.appendChild(pop);
     requestAnimationFrame(()=>{
       pop.classList.add('is-visible');
@@ -231,7 +263,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
           bodyEl.classList.add('is-hacker');
         }
         if (xpStore.award('konami-easter-egg', 42)){
-          showXpPop(42);
+          showXpDelta(42);
           updateHud();
         }
         showToast('Konami unlocked! neon mode engaged');
@@ -259,7 +291,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         if (bodyEl){
           const nowActive = bodyEl.classList.toggle('is-rat');
           if (nowActive && xpStore.award('rat-mode-easter-egg', 13)){
-            showXpPop(13);
+            showXpDelta(13);
             updateHud();
           }
           showToast(nowActive ? 'Rat mode activated! squeak squeak' : 'Rat mode disengaged. back to work');
@@ -286,6 +318,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
             status.textContent = '';
           }
         });
+        document.querySelectorAll('[data-tip-vault]').forEach(vault => {
+          if (typeof vault._tipLock === 'function'){
+            vault._tipLock();
+          }
+        });
+        updateScenarioLocks();
       }
     });
   }
@@ -328,7 +366,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if (xpStore.award(id, award)){
         activateMarker(marker);
         updateHud();
-        showXpPop(award);
+        showXpDelta(award);
+        updateScenarioLocks();
       }
     });
   });
@@ -352,9 +391,237 @@ document.addEventListener('DOMContentLoaded', ()=>{
         activateMarker(marker);
       }
       updateHud();
-      showXpPop(award);
+      showXpDelta(award);
+      updateScenarioLocks();
     }
   });
+
+  const initTipVaults = () => {
+    document.querySelectorAll('[data-tip-vault]').forEach(vault => {
+      const id = vault.dataset.tipId;
+      const cost = parseInt(vault.dataset.tipCost || '0', 10);
+      const body = vault.querySelector('[data-tip-body]');
+      const button = vault.querySelector('[data-tip-toggle]');
+      const status = vault.querySelector('[data-tip-status]');
+
+      const setLockedState = () => {
+        vault.classList.remove('is-unlocked');
+        if (body){
+          body.setAttribute('hidden', '');
+        }
+        if (button){
+          button.textContent = `Unlock tips (-${cost} XP)`;
+        }
+        if (status){
+          status.textContent = 'Tips are locked. Spend XP when you truly need guidance.';
+        }
+      };
+
+      const setUnlockedState = ({ reveal = true, initial = false } = {}) => {
+        vault.classList.add('is-unlocked');
+        if (body){
+          if (reveal){
+            body.removeAttribute('hidden');
+          } else {
+            body.setAttribute('hidden', '');
+          }
+        }
+        if (button){
+          button.textContent = body && !body.hasAttribute('hidden') ? 'Hide tips' : 'Show tips';
+        }
+        if (status){
+          status.textContent = initial ? 'Tips already unlocked. Toggle visibility as needed.' : `Spent ${cost} XP. Tips unlocked!`;
+        }
+      };
+
+      vault._tipLock = setLockedState;
+      vault._tipUnlock = setUnlockedState;
+
+      if (xpStore.data.tipsUsed && xpStore.data.tipsUsed[id]){
+        setUnlockedState({ reveal: false, initial: true });
+        if (button){
+          button.textContent = 'Show tips';
+        }
+      } else {
+        setLockedState();
+      }
+
+      if (button){
+        button.addEventListener('click', ()=>{
+          if (!body){
+            return;
+          }
+          if (vault.classList.contains('is-unlocked')){
+            const hidden = body.hasAttribute('hidden');
+            if (hidden){
+              body.removeAttribute('hidden');
+              button.textContent = 'Hide tips';
+            } else {
+              body.setAttribute('hidden', '');
+              button.textContent = 'Show tips';
+            }
+            return;
+          }
+
+          const result = xpStore.spendTip(id, cost);
+          if (!result.ok){
+            if (result.reason === 'insufficient'){
+              showToast(`Not enough XP yet. You need ${cost} XP to unlock.`);
+            } else {
+              showToast('Unable to unlock tips. Try again later.');
+            }
+            return;
+          }
+
+          updateHud();
+          if (result.spent){
+            showXpDelta(-result.spent);
+          }
+          setUnlockedState({ reveal: true, initial: false });
+        });
+      }
+    });
+  };
+
+  initTipVaults();
+
+  const initScenarioTabs = () => {
+    const stack = document.querySelector('[data-scenario-stack]');
+    const tabsWrapper = document.querySelector('[data-scenario-tabs]');
+    if (!stack || !tabsWrapper){
+      return;
+    }
+    const panels = Array.from(stack.querySelectorAll('.scenario[data-scenario-id]'));
+    if (!panels.length){
+      return;
+    }
+
+    panels.forEach(panel => {
+      panel.setAttribute('hidden', '');
+    });
+
+    const tabs = [];
+    const getPanelById = (id) => panels.find(panel => panel.dataset.scenarioId === id);
+
+    const labelFromPanel = (panel) => {
+      const title = panel.querySelector('.section-title');
+      if (!title){
+        return panel.dataset.scenarioId || 'Scenario';
+      }
+      const text = title.textContent.trim();
+      const colonIndex = text.indexOf(':');
+      if (colonIndex !== -1){
+        return text.slice(0, colonIndex).trim();
+      }
+      return text;
+    };
+
+    panels.forEach(panel => {
+      const id = panel.dataset.scenarioId;
+      const label = labelFromPanel(panel);
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'button scenario-tab';
+      button.dataset.scenarioTab = id;
+      button.dataset.scenarioIndex = panel.dataset.scenarioIndex || '';
+      button.textContent = label;
+      button.addEventListener('click', () => {
+        if (button.classList.contains('is-locked') || button.disabled){
+          showToast('Complete the previous scenario to unlock this tab.');
+          return;
+        }
+        setActiveScenario(id, { syncUrl: true });
+      });
+      tabsWrapper.appendChild(button);
+      tabs.push(button);
+    });
+
+    const applyLockStyles = () => {
+      panels.forEach(panel => {
+        const requirement = panel.dataset.scenarioRequires;
+        const unlocked = !requirement || !!xpStore.data.completed[requirement];
+        panel.dataset.scenarioLocked = unlocked ? 'false' : 'true';
+        panel.classList.toggle('is-locked', !unlocked);
+        const tab = tabs.find(btn => btn.dataset.scenarioTab === panel.dataset.scenarioId);
+        if (tab){
+          if (unlocked){
+            tab.classList.remove('is-locked');
+            tab.disabled = false;
+            tab.removeAttribute('aria-disabled');
+          } else {
+            tab.classList.add('is-locked');
+            tab.disabled = true;
+            tab.setAttribute('aria-disabled', 'true');
+          }
+        }
+      });
+    };
+
+    const syncUrl = (id) => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        params.set('page', 'playground');
+        params.set('scenario_view', id);
+        const next = `${window.location.pathname}?${params.toString()}`;
+        window.history.replaceState({}, '', next);
+      } catch (err) {
+        // ignore history API failures
+      }
+    };
+
+    const setActiveScenario = (id, { syncUrl: shouldSync = false } = {}) => {
+      const panel = getPanelById(id);
+      if (!panel || panel.dataset.scenarioLocked === 'true'){
+        return false;
+      }
+      panels.forEach(p => {
+        if (p === panel){
+          p.removeAttribute('hidden');
+          p.classList.add('is-active-panel');
+        } else {
+          p.setAttribute('hidden', '');
+          p.classList.remove('is-active-panel');
+        }
+      });
+      tabs.forEach(btn => {
+        const isActive = btn.dataset.scenarioTab === id;
+        btn.classList.toggle('is-active', isActive);
+        if (isActive){
+          btn.classList.remove('is-locked');
+          btn.disabled = false;
+          btn.removeAttribute('aria-disabled');
+        }
+      });
+      tabsWrapper.dataset.active = id;
+      if (shouldSync){
+        syncUrl(id);
+      }
+      return true;
+    };
+
+    const ensureVisible = (sync = false) => {
+      let desired = tabsWrapper.dataset.active || (panels[0] ? panels[0].dataset.scenarioId : null);
+      if (!desired){
+        return;
+      }
+      if (!setActiveScenario(desired, { syncUrl: sync })){
+        const fallback = panels.find(panel => panel.dataset.scenarioLocked === 'false');
+        if (fallback){
+          setActiveScenario(fallback.dataset.scenarioId, { syncUrl: sync });
+        }
+      }
+    };
+
+    updateScenarioLocks = () => {
+      applyLockStyles();
+      ensureVisible(false);
+    };
+
+    applyLockStyles();
+    ensureVisible(true);
+  };
+
+  initScenarioTabs();
 
   document.querySelectorAll('[data-fundamentals-playground]').forEach(playground => {
     const input = playground.querySelector('[data-fundamentals-input]');

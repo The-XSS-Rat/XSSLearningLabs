@@ -153,6 +153,29 @@ if ($page === 'fundamentals'){
     echo '<div><strong>Example document outline</strong><div class="bypass-list">&lt;!doctype html&gt;\n&lt;html&gt;\n  &lt;head&gt;... metadata ...&lt;/head&gt;\n  &lt;body&gt;\n    &lt;h1&gt;Title&lt;/h1&gt;\n    &lt;a href="/profile?id=7"&gt;Profile&lt;/a&gt;\n  &lt;/body&gt;\n&lt;/html&gt;</div></div>';
     echo '<div><strong>Why attackers care</strong><div class="small">If you can inject HTML, you can add new tags or attributes. That may give you a place to execute JavaScript (via <code>&lt;script&gt;</code>, event handlers, or dangerous URLs).</div></div>';
     echo '</div>';
+    echo '<div class="interactive-block">';
+    echo '<div class="section-title">Try it: render HTML vs. escaped text</div>';
+    echo '<div class="small">Type markup to see how browsers build DOM nodes. You will get both the live rendered version and an escaped, safe string for comparison.</div>';
+    echo '<div class="fundamentals-playground" data-fundamentals-playground>';
+    echo '<label class="small" for="fundamentals-html-input">Type some HTML</label>';
+    echo '<textarea id="fundamentals-html-input" class="input fundamentals-input" data-fundamentals-input placeholder="e.g. &lt;img src=x onerror=alert(1)&gt;">&lt;p&gt;Hello DOM! Try injecting &lt;strong&gt;bold&lt;/strong&gt; text or an &lt;img onerror=alert(1)&gt; payload.&lt;/p&gt;</textarea>';
+    echo '<div class="fundamentals-playground-actions">';
+    echo '<button type="button" class="button" data-fundamentals-render>Render snippet</button>';
+    echo '<button type="button" class="button button-secondary" data-fundamentals-reset>Reset</button>';
+    echo '</div>';
+    echo '<div class="fundamentals-playground-results">';
+    echo '<div class="fundamentals-preview">';
+    echo '<div class="fundamentals-preview-label">Rendered DOM</div>';
+    echo '<div class="fundamentals-preview-surface" data-fundamentals-preview></div>';
+    echo '</div>';
+    echo '<div class="fundamentals-preview">';
+    echo '<div class="fundamentals-preview-label">Escaped string</div>';
+    echo '<pre class="fundamentals-preview-surface" data-fundamentals-escaped></pre>';
+    echo '</div>';
+    echo '</div>';
+    echo '<div class="small fundamentals-tip" data-fundamentals-tip>✅ Keep experimenting until the rendered DOM matches what you expect.</div>';
+    echo '</div>';
+    echo '</div>';
     echo '<div class="section"><div class="section-title">The DOM: live objects representing the page</div><div class="small">When a browser parses HTML it creates a tree of nodes. JavaScript APIs manipulate this tree. Understanding node properties helps you predict where injected strings will land.</div></div>';
     echo '<div class="meta meta-columns">';
     echo '<div><strong>Key DOM terms</strong><ul class="lab-list"><li><em>Element nodes</em>: correspond to HTML tags and expose properties like <code>innerHTML</code> and <code>attributes</code>.</li><li><em>Text nodes</em>: represent literal text between tags.</li><li><em>Events</em>: actions like <code>click</code> or <code>load</code> that trigger handlers attached to nodes.</li></ul></div>';
@@ -625,11 +648,87 @@ if ($page === 'bypasses'){
     header_html('Filter bypasses (examples increasing difficulty)', 'bypasses');
     // load bypass file
     $bf = __DIR__ . '/bypasses.txt';
-    $content = is_file($bf) ? file_get_contents($bf) : 'No bypass file found.';
+    $content = is_file($bf) ? file_get_contents($bf) : '';
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">A grab bag of payloads for when filters attempt to block scripts. Start with the basics then escalate to more obscure vectors.</div></div>';
     xp_marker('bypass-library', 'Logged new payloads in the bypass library', 25);
     echo '<div class="section"><div class="section-title">How to practice</div><ol class="lab-steps"><li>Load a filter level in the Filter Lab.</li><li>Work down the list until one executes.</li><li>Note why it worked (protocol change, event handler, SVG, etc.).</li><li>Craft your own variant and append it to the list for future runs.</li></ol></div>';
-    echo '<div class="results bypass-list" style="margin-top:10px">'.htmlspecialchars($content).'</div>';
+
+    if (!$content){
+        echo '<div class="notice">No bypass file found.</div>';
+    } else {
+        $lines = preg_split('/\r?\n/', $content);
+        $groups = [];
+        $currentIndex = null;
+        foreach ($lines as $line){
+            $trimmed = trim($line);
+            if ($trimmed === ''){
+                continue;
+            }
+            if (preg_match('/^#\s*Group\s+/i', $trimmed)){
+                $groups[] = [
+                    'title' => $trimmed,
+                    'items' => []
+                ];
+                $currentIndex = count($groups) - 1;
+                continue;
+            }
+            if (strpos($trimmed, '#') === 0){
+                continue;
+            }
+            if ($currentIndex === null){
+                $groups[] = [
+                    'title' => 'Ungrouped bypasses',
+                    'items' => []
+                ];
+                $currentIndex = 0;
+            }
+            $num = null;
+            $payload = $trimmed;
+            if (preg_match('/^(\d+)\)\s*(.+)$/', $trimmed, $matches)){
+                $num = (int)$matches[1];
+                $payload = $matches[2];
+            }
+            $groups[$currentIndex]['items'][] = [
+                'num' => $num,
+                'payload' => $payload
+            ];
+        }
+
+        echo '<div class="bypass-accordion">';
+        foreach ($groups as $group){
+            $items = $group['items'];
+            if (!$items){
+                continue;
+            }
+            $numericItems = array_values(array_filter($items, function($item){
+                return $item['num'] !== null;
+            }));
+            $hasNumbers = !empty($numericItems);
+            $start = $hasNumbers ? $numericItems[0]['num'] : 1;
+            $count = count($items);
+            echo '<details class="bypass-group">';
+            echo '<summary class="bypass-summary"><span class="bypass-group-title">'.htmlspecialchars($group['title']).'</span><span class="bypass-count">'.$count.' payload'.($count === 1 ? '' : 's').'</span></summary>';
+            echo '<div class="bypass-items">';
+            if ($hasNumbers){
+                echo '<ol class="bypass-listing" start="'.(int)$start.'">';
+                foreach ($items as $item){
+                    $label = htmlspecialchars($item['payload'], ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                    echo '<li class="bypass-item"><code>'.$label.'</code></li>';
+                }
+                echo '</ol>';
+            } else {
+                echo '<ul class="bypass-listing">';
+                foreach ($items as $item){
+                    $label = htmlspecialchars($item['payload'], ENT_NOQUOTES | ENT_SUBSTITUTE, 'UTF-8');
+                    echo '<li class="bypass-item"><code>'.$label.'</code></li>';
+                }
+                echo '</ul>';
+            }
+            echo '</div>';
+            echo '</details>';
+        }
+        echo '</div>';
+    }
     footer_html();
     exit;
 }

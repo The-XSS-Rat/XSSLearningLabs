@@ -142,6 +142,26 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const totalEl = document.getElementById('xp-total');
   const progressFill = document.getElementById('xp-progress-fill');
   const resetBtn = document.getElementById('xp-reset');
+  const xpHudEl = document.querySelector('[data-xp-hud]');
+
+  const showXpPop = (amount) => {
+    if (!xpHudEl || !Number.isFinite(amount) || amount <= 0){
+      return;
+    }
+    const pop = document.createElement('div');
+    pop.className = 'xp-pop';
+    pop.textContent = `+${amount} XP`;
+    xpHudEl.appendChild(pop);
+    requestAnimationFrame(()=>{
+      pop.classList.add('is-visible');
+    });
+    setTimeout(()=>{
+      pop.classList.add('is-leaving');
+    }, 1400);
+    setTimeout(()=>{
+      pop.remove();
+    }, 1900);
+  };
 
   const updateHud = () => {
     if (!levelEl || !totalEl || !progressFill){
@@ -219,6 +239,92 @@ document.addEventListener('DOMContentLoaded', ()=>{
       if (xpStore.award(id, award)){
         activateMarker(marker);
         updateHud();
+        showXpPop(award);
+      }
+    });
+  });
+
+  const escapeSelector = (value) => {
+    if (window.CSS && typeof window.CSS.escape === 'function'){
+      return window.CSS.escape(value);
+    }
+    return value.replace(/(["'\\\[\]\.:#])/g, '\\$1');
+  };
+
+  document.addEventListener('lab:solved', (event)=>{
+    if (!event || !event.detail || !event.detail.id){
+      return;
+    }
+    const id = String(event.detail.id);
+    const marker = document.querySelector(`.xp-marker[data-xp-id="${escapeSelector(id)}"]`);
+    const award = Number.isFinite(event.detail.amount) ? event.detail.amount : (marker ? parseInt(marker.dataset.xpAward || '0', 10) : 0);
+    if (xpStore.award(id, award)){
+      if (marker){
+        activateMarker(marker);
+      }
+      updateHud();
+      showXpPop(award);
+    }
+  });
+
+  document.querySelectorAll('[data-fundamentals-playground]').forEach(playground => {
+    const input = playground.querySelector('[data-fundamentals-input]');
+    const renderBtn = playground.querySelector('[data-fundamentals-render]');
+    const resetBtnEl = playground.querySelector('[data-fundamentals-reset]');
+    const preview = playground.querySelector('[data-fundamentals-preview]');
+    const escaped = playground.querySelector('[data-fundamentals-escaped]');
+    const tip = playground.querySelector('[data-fundamentals-tip]');
+    if (!input || !preview || !escaped){
+      return;
+    }
+    const defaultValue = input.value;
+    let solved = false;
+    const syncPreview = (value) => {
+      preview.innerHTML = value;
+      escaped.textContent = value;
+    };
+    const markSolved = () => {
+      if (solved){
+        return;
+      }
+      const value = input.value;
+      if (!value.trim().length){
+        return;
+      }
+      solved = true;
+      if (tip){
+        tip.textContent = 'Nice! You just rendered live DOM and saw the escaped version.';
+        tip.classList.add('is-success');
+      }
+      document.dispatchEvent(new CustomEvent('lab:solved', { detail: { id: 'fundamentals-overview' } }));
+    };
+
+    syncPreview(defaultValue);
+
+    renderBtn?.addEventListener('click', () => {
+      syncPreview(input.value);
+      markSolved();
+    });
+    input.addEventListener('keydown', (event)=>{
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'enter'){
+        event.preventDefault();
+        syncPreview(input.value);
+        markSolved();
+      }
+    });
+    input.addEventListener('input', () => {
+      syncPreview(input.value);
+      if (input.value !== defaultValue){
+        markSolved();
+      }
+    });
+    resetBtnEl?.addEventListener('click', ()=>{
+      input.value = defaultValue;
+      syncPreview(defaultValue);
+      solved = false;
+      if (tip){
+        tip.textContent = '✅ Keep experimenting until the rendered DOM matches what you expect.';
+        tip.classList.remove('is-success');
       }
     });
   });

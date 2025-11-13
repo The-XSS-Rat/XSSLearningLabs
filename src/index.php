@@ -108,6 +108,38 @@ function render_xp_hud(){
     echo '<div class="xp-progress-bar"><div class="xp-progress-fill" id="xp-progress-fill" role="progressbar" aria-valuemin="0" aria-valuemax="100"></div></div>';
     echo '<button type="button" class="button xp-reset" id="xp-reset">Reset XP</button>';
     echo '</div>';
+    echo '<div class="xp-auth" data-auth-shell>';
+    echo '<div class="xp-auth-status" data-auth-status>Guest mode: progress stays on this device.</div>';
+    echo '<div class="xp-auth-actions">';
+    echo '<button type="button" class="button ghost" data-auth-open>Login / Register</button>';
+    echo '<button type="button" class="button subtle" data-auth-logout hidden>Log out</button>';
+    echo '</div>';
+    echo '</div>';
+    echo '<div class="auth-modal" data-auth-modal hidden aria-hidden="true">';
+    echo '<div class="auth-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-modal-title">';
+    echo '<button type="button" class="auth-modal-close" data-auth-close aria-label="Close authentication panel">×</button>';
+    echo '<div class="auth-modal-header" id="auth-modal-title">Track your XP</div>';
+    echo '<div class="auth-modal-body">';
+    echo '<div class="auth-tabs">';
+    echo '<button type="button" class="auth-tab is-active" data-auth-tab="login">Login</button>';
+    echo '<button type="button" class="auth-tab" data-auth-tab="register">Register</button>';
+    echo '</div>';
+    echo '<form class="auth-form" data-auth-form="login">';
+    echo '<label>Username<input class="input" name="username" autocomplete="username" required></label>';
+    echo '<label>Password<input class="input" type="password" name="password" autocomplete="current-password" required></label>';
+    echo '<button type="submit" class="button">Login</button>';
+    echo '<div class="auth-form-hint small">Stored locally. Use a throwaway password.</div>';
+    echo '</form>';
+    echo '<form class="auth-form" data-auth-form="register" hidden>';
+    echo '<label>Choose a username<input class="input" name="username" autocomplete="username" required></label>';
+    echo '<label>Create a password<input class="input" type="password" name="password" autocomplete="new-password" required></label>';
+    echo '<button type="submit" class="button">Create account</button>';
+    echo '<div class="auth-form-hint small">Accounts live in localStorage so you can switch devices without losing XP exports.</div>';
+    echo '</form>';
+    echo '<div class="auth-modal-footer small">XP sync is local-first. Register to keep separate profiles per learner.</div>';
+    echo '</div>';
+    echo '</div>';
+    echo '</div>';
     echo '</div>';
 }
 
@@ -122,6 +154,18 @@ function xp_marker($id, $label, $xp = 25){
     echo '</div>';
     echo '<div class="xp-marker-status" aria-live="polite"></div>';
     echo '</div>';
+}
+
+function start_exploit_context($markerId){
+    if (!$markerId){
+        return;
+    }
+    $json = json_encode($markerId, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP);
+    echo '<script>window.__xssLabCurrentMarker = '.$json.';</script>';
+}
+
+function end_exploit_context(){
+    echo '<script>window.__xssLabCurrentMarker = null;</script>';
 }
 
 function tip_vault($id, $cost, $title, $groups = []){
@@ -158,14 +202,25 @@ function tip_vault($id, $cost, $title, $groups = []){
     echo '</div>';
 }
 
-function header_html($title='XSS Lab', $active='home'){
+function header_html($title='XSS Lab', $active='home', $defaultMarker = null){
+    $bodyClass = 'app-shell';
+    $attrs = ' class="'.$bodyClass.'"';
+    if ($active){
+        $attrs .= ' data-active-page="'.htmlspecialchars($active, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'"';
+    }
+    if ($defaultMarker){
+        $attrs .= ' data-default-marker="'.htmlspecialchars($defaultMarker, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'"';
+    }
     echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'.htmlspecialchars($title).'</title>';
     echo '<link rel="stylesheet" href="styles.css">';
-    echo '</head><body class="app-shell">';
+    echo '</head><body'.$attrs.'>';
     echo '<div class="background-glow"></div><div class="background-grid"></div>';
-    echo '<div class="container">';
+    echo '<button class="mobile-nav-toggle" data-nav-toggle aria-controls="sidebar-nav" aria-expanded="false"><span class="mobile-nav-icon" aria-hidden="true"><span></span></span><span class="mobile-nav-label">Menu</span></button>';
+    echo '<div class="mobile-brand">The XSS Rat — XSS Lab</div>';
+    echo '<div class="nav-overlay" data-nav-overlay></div>';
+    echo '<div class="container" data-layout-container>';
     // sidebar
-    echo '<aside class="sidebar card">';
+    echo '<aside class="sidebar card" id="sidebar-nav" data-sidebar>';
     echo '<div class="logo">The XSS Rat — XSS Lab</div>';
     echo '<div class="sidebar-intro small">Pick a track to explore a specific XSS vector. Each lab walks you through reconnaissance, exploitation and reflection steps.</div>';
     echo '<nav class="sidebar-nav">';
@@ -321,7 +376,7 @@ if ($page === 'fundamentals'){
 }
 
 if ($page === 'reflected'){
-    header_html('Reflected XSS', 'reflected');
+    header_html('Reflected XSS', 'reflected', 'reflected-first-payload');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Classic reflected XSS happens when user input is immediately returned in the HTTP response. Use the form below to trace the data flow and capture a working payload.</div></div>';
     xp_marker('reflected-first-payload', 'Executed a reflected XSS payload', 30);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Map the reflected parameter using ?page=reflected&amp;q=test and observe the response.</li><li>Confirm raw HTML injection by attempting harmless tags like <code>&lt;em&gt;</code>.</li><li>Escalate to JavaScript execution with <code>&lt;script&gt;alert(1)&lt;/script&gt;</code> or event handler payloads.</li><li>Experiment with filter bypasses such as breaking out of attributes or using <code>&lt;img src onerror=alert(1)&gt;</code>.</ol></div>';
@@ -357,14 +412,16 @@ if ($page === 'reflected'){
     ]);
     echo '<div class="results"><div class="results-title">Raw response fragment</div><div class="results-body">';
     // intentionally vulnerable echo
+    start_exploit_context('reflected-first-payload');
     echo $q;
+    end_exploit_context();
     echo '</div></div>';
     footer_html();
     exit;
 }
 
 if ($page === 'stored'){
-    header_html('Stored XSS', 'stored');
+    header_html('Stored XSS', 'stored', 'stored-exploit');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Stored (persistent) XSS abuses server-side storage such as databases or comment systems. Inputs are saved and replayed to all viewers without sanitisation.</div></div>';
     xp_marker('stored-exploit', 'Delivered a stored XSS payload', 35);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Publish a benign message and verify it appears below.</li><li>Inject HTML to validate that markup is preserved in storage.</li><li>Store a script payload so it runs when the page renders.</li><li>Refine your payload to steal cookies or demonstrate impact via the console.</li></ol></div>';
@@ -409,7 +466,11 @@ if ($page === 'stored'){
         echo '<div style="border-bottom:1px solid rgba(255,255,255,0.02);padding:8px;margin-bottom:8px">';
         echo '<div class="small">#'.intval($r['id']).' - '.htmlspecialchars($r['created_at']).' - <strong>'.htmlspecialchars($r['title']).'</strong></div>';
         // UNSAFE: render body raw to demonstrate XSS
-        echo '<div style="margin-top:6px">'. $r['body'] .'</div>';
+        echo '<div style="margin-top:6px">';
+        start_exploit_context('stored-exploit');
+        echo $r['body'];
+        end_exploit_context();
+        echo '</div>';
         echo '</div>';
     }
     echo '</div>';
@@ -418,7 +479,7 @@ if ($page === 'stored'){
 }
 
 if ($page === 'dom'){
-    header_html('DOM XSS', 'dom');
+    header_html('DOM XSS', 'dom', 'dom-sink');
     // example using location.hash insertion into innerHTML
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">DOM-based XSS executes entirely in the browser when JavaScript reads untrusted data and writes it to a sink without sanitising.</div></div>';
     xp_marker('dom-sink', 'Abused a DOM XSS sink', 30);
@@ -522,9 +583,10 @@ if ($page === 'filter'){
         $level = 'none';
     }
     $levelQuery = urlencode($level);
-    header_html('Filter Lab', 'filter');
+    header_html('Filter Lab', 'filter', 'filter-bypass');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Use the filter lab to understand how different server-side defences behave. Submit payloads and compare the raw, filtered and rendered output.</div></div>';
     xp_marker('filter-bypass', 'Bypassed a filter level', 35);
+    xp_marker('filter-speedrun', 'Beat the filter speedrun challenge', 40);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Select a filter level to see how it transforms your input.</li><li>Test known payloads from the bypass library against each level.</li><li>Document which encodings or transformations defeat the filter.</li><li>Consider the impact if the filtered output is placed into various contexts.</li></ol></div>';
     echo '<form method="GET" action="">';
     echo '<input type="hidden" name="page" value="filter">';
@@ -558,6 +620,21 @@ if ($page === 'filter'){
             ]
         ]
     ]);
+    $levelsJson = htmlspecialchars(json_encode($allowedLevels, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    echo '<div class="speedrun card" data-speedrun data-levels="'.$levelsJson.'" data-default-count="5">';
+    echo '<div class="speedrun-head">';
+    echo '<div><div class="speedrun-title">Speedrun challenge</div><div class="small">Beat a gauntlet of random filters as fast as possible. Mark each bypass when your payload executes.</div></div>';
+    echo '<div class="speedrun-controls">';
+    echo '<label class="small">Filters per run<input type="number" min="1" max="'.count($allowedLevels).'" value="5" class="input" data-speedrun-count></label>';
+    echo '<button type="button" class="button" data-speedrun-start>Start run</button>';
+    echo '</div>';
+    echo '</div>';
+    echo '<div class="speedrun-meta">';
+    echo '<div><strong>Current timer</strong><div class="speedrun-timer" data-speedrun-timer>00:00.000</div></div>';
+    echo '<div><strong>Personal best</strong><div class="speedrun-best" data-speedrun-best>No runs yet</div></div>';
+    echo '</div>';
+    echo '<div class="speedrun-list" data-speedrun-list><div class="speedrun-empty">Hit “Start run” to generate filters.</div></div>';
+    echo '</div>';
     echo '<div class="meta meta-columns"><div><strong>Challenge scenarios</strong><ol class="lab-steps"><li>Reflected search parameter with <em>strip attributes</em>.</li><li>Profile badge rendered through the <em>tag whitelist</em>.</li><li>JSON config saved with <em>double encoding</em>.</li></ol></div><div><strong>Practice goals</strong><ul class="lab-list"><li>Identify which level leaves enough context for execution.</li><li>Craft a payload that survives the server filter and still executes in the rendered sink.</li><li>Record bypasses to replay in the playground and new WAF lab.</li></ul></div></div>';
     if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['input'])){
         $raw = $_POST['input'];
@@ -569,7 +646,9 @@ if ($page === 'filter'){
         echo '</div>';
         echo '<div class="results-sink"><div class="analysis-label">Rendered sink (unsafe)</div><div class="sink-output">';
         // intentionally render filtered output without encoding to show bypasses
+        start_exploit_context('filter-bypass');
         echo $filtered;
+        end_exploit_context();
         echo '</div></div></div>';
     }
     footer_html();

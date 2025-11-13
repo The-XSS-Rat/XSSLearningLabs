@@ -202,6 +202,24 @@ function tip_vault($id, $cost, $title, $groups = []){
     echo '</div>';
 }
 
+function show_me_widget($scriptId, $title, $body, $cost = 5){
+    if (!$scriptId){
+        return;
+    }
+    $idAttr = htmlspecialchars($scriptId, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $titleEsc = htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $bodyEsc = htmlspecialchars($body, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $costVal = max(0, (int)$cost);
+    $buttonLabel = $costVal > 0 ? 'Unlock & show me (-'.$costVal.' XP)' : 'Show me';
+    echo '<div class="show-me-shell" data-show-me-shell data-show-me-id="'.$idAttr.'" data-show-me-script="'.$idAttr.'" data-show-me-cost="'.$costVal.'">';
+    echo '<div class="show-me-label">'.$titleEsc.'</div>';
+    echo '<div class="show-me-body small">'.$bodyEsc.'</div>';
+    echo '<div class="show-me-status small" data-show-me-status>'.($costVal > 0 ? 'Costs '.$costVal.' XP to unlock this walkthrough.' : 'Ready to play the walkthrough.').'</div>';
+    echo '<div class="show-me-actions"><button type="button" class="button ghost" data-show-me-trigger>'.htmlspecialchars($buttonLabel, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'</button></div>';
+    echo '<div class="show-me-output small" data-show-me-output aria-live="polite"></div>';
+    echo '</div>';
+}
+
 function header_html($title='XSS Lab', $active='home', $defaultMarker = null){
     $bodyClass = 'app-shell';
     $attrs = ' class="'.$bodyClass.'"';
@@ -271,12 +289,6 @@ if ($page === 'home'){
     echo '<div class="hero-title">Start from zero knowledge and grow into an XSS practitioner.</div>';
     echo '<div class="hero-body small">Follow the learning path: absorb the web fundamentals, practise every XSS flavour with checklists, then solidify your skills inside the sandbox playground.</div>';
     echo '</div>';
-    echo '<div class="show-me-shell" data-show-me-shell data-show-me-script="home-fast-track">';
-    echo '<div class="show-me-label">Need an assisted run?</div>';
-    echo '<div class="show-me-body small">Tap “Show me” to watch a step-by-step exploit route type out letter by letter so you can mirror it in the labs.</div>';
-    echo '<button type="button" class="button ghost" data-show-me-trigger>Show me</button>';
-    echo '<div class="show-me-output small" data-show-me-output aria-live="polite"></div>';
-    echo '</div>';
     xp_marker('home-orientation', 'Reviewed the home orientation and learning path', 15);
     echo '<div class="meta meta-columns intro-columns">';
     echo '<div><strong>What you will learn</strong><div class="small">Understand how browsers build the Document Object Model (DOM), how HTML tags and attributes shape a page, and how JavaScript interacts with those nodes. Each lab references these ideas so you can connect theory with the exploit workflow.</div></div>';
@@ -314,6 +326,7 @@ if ($page === 'fundamentals'){
     header_html('Foundations & concepts', 'fundamentals');
     echo '<div class="section"><div class="section-title">Welcome to the web stack</div><div class="small">Before throwing payloads at inputs, understand how browsers interpret HTML, build the Document Object Model (DOM) and execute JavaScript. This foundation lets you reason about where user-controlled data travels.</div></div>';
     xp_marker('fundamentals-overview', 'Studied the foundations and concepts overview', 20);
+    show_me_widget('fundamentals-tour', 'Guided DOM tour', 'Unlock a narrated typing session that renders markup, compares it with the escaped view and challenges you to predict the results before trying it yourself.', 4);
     echo '<div class="section"><div class="section-title">HTML: the structure layer</div><div class="small">HyperText Markup Language describes the layout of a page using nested tags. Each tag can carry attributes that store extra data. Browsers parse these tags into DOM nodes.</div></div>';
     echo '<div class="meta meta-columns">';
     echo '<div><strong>HTML essentials</strong><ul class="lab-list"><li><code>&lt;tag&gt;content&lt;/tag&gt;</code> wraps text or other elements.</li><li>Attributes like <code>href="..."</code> or <code>onclick="..."</code> live inside the opening tag.</li><li>Void elements (e.g. <code>&lt;img&gt;</code>) have no closing tag and are common XSS sinks via attributes.</li></ul></div>';
@@ -385,6 +398,7 @@ if ($page === 'reflected'){
     header_html('Reflected XSS', 'reflected', 'reflected-first-payload');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Classic reflected XSS happens when user input is immediately returned in the HTTP response. Use the form below to trace the data flow and capture a working payload.</div></div>';
     xp_marker('reflected-first-payload', 'Executed a reflected XSS payload', 30);
+    show_me_widget('reflected-route', 'Reflected XSS walkthrough', 'Spend a few XP to watch the assistant submit payloads, inspect the response and explain why the q parameter is exploitable before handing control back to you.', 5);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Map the reflected parameter using ?page=reflected&amp;q=test and observe the response.</li><li>Confirm raw HTML injection by attempting harmless tags like <code>&lt;em&gt;</code>.</li><li>Escalate to JavaScript execution with <code>&lt;script&gt;alert(1)&lt;/script&gt;</code> or event handler payloads.</li><li>Experiment with filter bypasses such as breaking out of attributes or using <code>&lt;img src onerror=alert(1)&gt;</code>.</ol></div>';
     // echo back GET param 'q' unsafely
     $q = $_GET['q'] ?? '';
@@ -430,6 +444,7 @@ if ($page === 'stored'){
     header_html('Stored XSS', 'stored', 'stored-exploit');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Stored (persistent) XSS abuses server-side storage such as databases or comment systems. Inputs are saved and replayed to all viewers without sanitisation.</div></div>';
     xp_marker('stored-exploit', 'Delivered a stored XSS payload', 35);
+    show_me_widget('stored-route', 'Stored XSS walkthrough', 'Unlock a narrated example that posts a harmless note, escalates to a script payload and describes how to watch it execute for every visitor.', 5);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Publish a benign message and verify it appears below.</li><li>Inject HTML to validate that markup is preserved in storage.</li><li>Store a script payload so it runs when the page renders.</li><li>Refine your payload to steal cookies or demonstrate impact via the console.</li></ol></div>';
     // handle posting messages into sqlite
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['title'])){
@@ -489,6 +504,7 @@ if ($page === 'dom'){
     // example using location.hash insertion into innerHTML
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">DOM-based XSS executes entirely in the browser when JavaScript reads untrusted data and writes it to a sink without sanitising.</div></div>';
     xp_marker('dom-sink', 'Abused a DOM XSS sink', 30);
+    show_me_widget('dom-route', 'DOM sink walkthrough', 'Pay a few XP to watch the assistant mutate the hash, trace decodeURIComponent() into innerHTML and then prompt you to repeat it manually.', 5);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Review the inline script to identify the sink (<code>innerHTML</code>).</li><li>Modify the hash using the control below or straight in the URL bar.</li><li>Observe how the sink renders decoded content from <code>location.hash</code>.</li><li>Deliver payloads such as <code>#%3Cimg%20src%3Dx%20onerror%3Dalert(1)%3E</code> and watch them fire.</li></ol></div>';
     echo '<div class="form-row"><input class="input" id="dom-input" data-field="dom-input" placeholder="Change the URL hash or try a payload"><span class="input-hint">Hint: hashes are URL encoded. Use %3C for &lt;.</span></div>';
     echo '<div class="form-row"><button class="button" onclick="location.hash = document.getElementById(\'dom-input\').value">Set hash</button></div>';
@@ -534,6 +550,7 @@ if ($page === 'blind'){
     header_html('Blind XSS', 'blind');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Blind XSS payloads execute on a separate system (e.g. admin panel) and cannot be observed directly. Instead, the payload must exfiltrate to a controlled endpoint like the logger below.</div></div>';
     xp_marker('blind-callback', 'Captured a blind XSS callback', 40);
+    show_me_widget('blind-route', 'Blind logger walkthrough', 'Unlock the assistant to watch it craft an exfiltration payload, deliver it to the imaginary target and interpret the logger output before you try the same flow.', 6);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Craft a payload that makes an outbound request to <code>/blind_logger.php</code>.</li><li>Deliver the payload to a hypothetical support system or admin portal.</li><li>Monitor the log to confirm when an unsuspecting victim loads it.</li><li>Extract contextual data (cookies, DOM, CSRF tokens) in the payload and send them to the logger.</li></ol></div>';
     echo '<form method="GET" action="?page=blind"><div class="form-row"><input class="input" name="payload" data-field="payload" placeholder="Example: &lt;img src=\'/blind_logger.php?p=1\'&gt;"><span class="input-hint">Try using fetch or new Image() for stealth.</span></div><div class="form-row"><button class="button">Preview payload</button></div></form>';
     $payload = $_GET['payload'] ?? '';
@@ -593,6 +610,7 @@ if ($page === 'filter'){
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Use the filter lab to understand how different server-side defences behave. Submit payloads and compare the raw, filtered and rendered output.</div></div>';
     xp_marker('filter-bypass', 'Bypassed a filter level', 35);
     xp_marker('filter-speedrun', 'Beat the filter speedrun challenge', 40);
+    show_me_widget('filter-gauntlet', 'Filter gauntlet walkthrough', 'Spend XP to watch a run-through that spawns the mini workbench, loads several filter levels and explains how to log each bypass before you race the clock.', 6);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Select a filter level to see how it transforms your input.</li><li>Test known payloads from the bypass library against each level.</li><li>Document which encodings or transformations defeat the filter.</li><li>Consider the impact if the filtered output is placed into various contexts.</li></ol></div>';
     echo '<form method="GET" action="">';
     echo '<input type="hidden" name="page" value="filter">';
@@ -603,6 +621,10 @@ if ($page === 'filter'){
     echo '<input type="hidden" name="level" value="'.htmlspecialchars($level, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'">';
     echo '<div class="form-row"><textarea class="input" name="input" data-field="filter-input" rows="4" placeholder="Try payloads here"></textarea><span class="input-hint">Try: &lt;svg onload=alert(1)&gt;</span></div><div class="form-row"><button class="button">Run through filter</button></div>';
     echo '</form>';
+    echo '<div class="speedrun-workbench card" id="filter-workbench" data-speedrun-workbench>'; 
+    echo '<div class="speedrun-workbench-head"><div><div class="speedrun-workbench-title">Speedrun workbench</div><div class="small">Start a run to spawn dedicated mini forms right here. Each one posts to its filter level so you never have to touch the dropdown mid-race.</div></div></div>';
+    echo '<div class="speedrun-workbench-list" data-speedrun-workbench-list><div class="speedrun-workbench-empty">Start a speedrun to generate filter-specific inputs.</div></div>';
+    echo '</div>';
     tip_vault('tips-filter', 7, 'Filter lab decoder ring', [
         [
             'title' => 'Compare every stage',
@@ -627,9 +649,9 @@ if ($page === 'filter'){
         ]
     ]);
     $levelsJson = htmlspecialchars(json_encode($allowedLevels, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-    echo '<div class="speedrun card" data-speedrun data-levels="'.$levelsJson.'" data-default-count="5">';
+    echo '<div class="speedrun card" data-speedrun data-levels="'.$levelsJson.'" data-default-count="5" data-speedrun-workbench="filter-workbench">';
     echo '<div class="speedrun-head">';
-    echo '<div><div class="speedrun-title">Speedrun challenge</div><div class="small">Beat a gauntlet of random filters as fast as possible. Mark each bypass when your payload executes.</div></div>';
+    echo '<div><div class="speedrun-title">Speedrun challenge</div><div class="small">Beat a gauntlet of random filters as fast as possible. Mini filter forms spawn near the lab so you can focus on payloads.</div></div>';
     echo '<div class="speedrun-controls">';
     echo '<label class="small">Filters per run<input type="number" min="1" max="'.count($allowedLevels).'" value="5" class="input" data-speedrun-count></label>';
     echo '<button type="button" class="button" data-speedrun-start>Start run</button>';
@@ -681,6 +703,7 @@ if ($page === 'waf'){
     header_html('WAF bypass lab', 'waf');
     echo '<div class="section"><div class="section-title">Understand the WAF mindset</div><div class="small">Web Application Firewalls inspect requests before they reach the application. Each level below simulates a different inspection strategy so you can rehearse bypass techniques. Study the lecture notes, then prove execution by slipping payloads past increasingly strict checks.</div></div>';
     xp_marker('waf-lecture', 'Reviewed the WAF lecture and strategy notes', 20);
+    show_me_widget('waf-tour', 'WAF walkthrough', 'Spend XP to watch the guide send a payload through each level, narrate why it was blocked or allowed and then prompt you to craft your own bypass.', 6);
     echo '<div class="meta meta-columns"><div><strong>Lecture essentials</strong><ul class="lab-list"><li><em>Signature engines</em> search for dangerous substrings (e.g. <code>&lt;script&gt;</code>, <code>onload=</code>).</li><li><em>Behavioural rules</em> flag DOM APIs, suspicious keywords, or encoded HTML.</li><li><em>Normalization</em> collapses encodings before inspection—test URL encoding, HTML entities and JSON wrappers.</li></ul></div><div><strong>Bypass playbook</strong><ul class="lab-list"><li>Break signatures with case changes, inserted comments or attribute reordering.</li><li>Hide execution in secondary contexts (SVG, data URIs, template expressions).</li><li>Chain double-encoding or alternate event sources to overwhelm naive checks.</li></ul></div></div>';
     echo '<div class="section"><div class="section-title">Training levels</div><div class="small">Pick a level, craft a payload, and study how the WAF responds. Unlocking each level awards XP so you can track progress across practice sessions.</div></div>';
     echo '<form method="POST" action="?page=waf"><input type="hidden" name="page" value="waf"><div class="form-row"><label class="small">WAF level</label><select name="waf_level">';
@@ -752,6 +775,7 @@ if ($page === 'playground'){
     header_html('Practice playground', 'playground');
     echo '<div class="section"><div class="section-title">Put the concepts to work</div><div class="small">Use these miniature applications to rehearse exploitation outside of the guided steps. Each scenario mirrors a real bug class and encourages you to apply reconnaissance, payload crafting and impact demonstration.</div></div>';
     echo '<div class="section"><div class="section-title">How to approach the playground</div><ol class="lab-steps"><li>Skim the brief and predict where user input will land.</li><li>Attempt benign probes (<code>test</code>, <code>&lt;em&gt;</code>, quotes) before escalating.</li><li>Record working payloads and why they succeed—think about DOM vs. server rendering.</li><li>Reset the page with different payload styles (HTML, attribute, URL) to cement the concept.</li></ol></div>';
+    show_me_widget('playground-tour', 'Playground walkthrough', 'Unlock a narrated lap through the first scenarios so you can see how the assistant scopes the sink, builds a payload and then pauses for you to replicate it before moving to tougher cases.', 6);
     echo '<div class="playground-tabs" data-scenario-tabs data-active="'.htmlspecialchars($activeScenario, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'"></div>';
     echo '<div class="playground-stack" data-scenario-stack>';
 
@@ -1341,6 +1365,7 @@ if ($page === 'contexts'){
     header_html('XSS Contexts Explorer', 'contexts');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Payload behaviour changes depending on the surrounding context. Use this explorer to see how the same string behaves in multiple locations.</div></div>';
     xp_marker('contexts-tour', 'Mapped payload behaviour across contexts', 30);
+    show_me_widget('contexts-tour-script', 'Context walkthrough', 'Unlock a typing assistant that feeds a single payload through HTML, attribute, JS, URL and CSS contexts while explaining what survives in each slot before asking you to repeat it.', 4);
     echo '<div class="section"><div class="section-title">Checklist</div><ol class="lab-steps"><li>Input a payload that mixes quotes, tags and JavaScript.</li><li>Note which contexts render, escape or break on your payload.</li><li>Adjust encoding to target specific contexts (attribute vs. JS string etc.).</li><li>Record working variants for future engagements.</li></ol></div>';
     // contexts: html body, attribute, js string, url param, style
     echo '<form method="GET" action="?page=contexts">';
@@ -1387,6 +1412,7 @@ if ($page === 'random'){
     header_html('Random rules playground', 'random');
     echo '<div class="section"><div class="section-title">Mission brief</div><div class="small">Every visit loads a new filter stack. Reverse engineer the rules, adapt your payload and record the bypass for future engagements.</div></div>';
     xp_marker('random-rules-cracked', 'Solved a random rules challenge', 35);
+    show_me_widget('random-tour', 'Random rules walkthrough', 'Pay XP to watch the narrator inspect the generated stack, highlight the active filter hints and craft a bypass before encouraging you to attack the shuffled challenge.', 5);
 
     $filterTitles = [
         'none' => 'No filter',

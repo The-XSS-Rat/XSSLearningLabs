@@ -404,17 +404,25 @@ document.addEventListener('DOMContentLoaded', ()=>{
       const button = vault.querySelector('[data-tip-toggle]');
       const status = vault.querySelector('[data-tip-status]');
 
+      const syncButtonState = (expanded) => {
+        if (!button){
+          return;
+        }
+        button.textContent = expanded ? 'Hide tips' : vault.classList.contains('is-unlocked') ? 'Show tips' : `Unlock tips (-${cost} XP)`;
+        button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      };
+
       const setLockedState = () => {
         vault.classList.remove('is-unlocked');
         if (body){
           body.setAttribute('hidden', '');
-        }
-        if (button){
-          button.textContent = `Unlock tips (-${cost} XP)`;
+          body.classList.add('is-collapsed');
+          body.setAttribute('aria-hidden', 'true');
         }
         if (status){
           status.textContent = 'Tips are locked. Spend XP when you truly need guidance.';
         }
+        syncButtonState(false);
       };
 
       const setUnlockedState = ({ reveal = true, initial = false } = {}) => {
@@ -422,13 +430,16 @@ document.addEventListener('DOMContentLoaded', ()=>{
         if (body){
           if (reveal){
             body.removeAttribute('hidden');
+            body.classList.remove('is-collapsed');
+            body.setAttribute('aria-hidden', 'false');
           } else {
             body.setAttribute('hidden', '');
+            body.classList.add('is-collapsed');
+            body.setAttribute('aria-hidden', 'true');
           }
         }
-        if (button){
-          button.textContent = body && !body.hasAttribute('hidden') ? 'Hide tips' : 'Show tips';
-        }
+        const expanded = body ? !body.hasAttribute('hidden') : false;
+        syncButtonState(expanded);
         if (status){
           status.textContent = initial ? 'Tips already unlocked. Toggle visibility as needed.' : `Spent ${cost} XP. Tips unlocked!`;
         }
@@ -455,10 +466,16 @@ document.addEventListener('DOMContentLoaded', ()=>{
             const hidden = body.hasAttribute('hidden');
             if (hidden){
               body.removeAttribute('hidden');
+              body.classList.remove('is-collapsed');
+              body.setAttribute('aria-hidden', 'false');
               button.textContent = 'Hide tips';
+              button.setAttribute('aria-expanded', 'true');
             } else {
               body.setAttribute('hidden', '');
+              body.classList.add('is-collapsed');
+              body.setAttribute('aria-hidden', 'true');
               button.textContent = 'Show tips';
+              button.setAttribute('aria-expanded', 'false');
             }
             return;
           }

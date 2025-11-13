@@ -120,6 +120,7 @@ a{color:inherit}
 .tip-vault-status{font-size:12px;color:var(--muted);position:relative;z-index:1}
 .tip-vault-button{align-self:flex-start;position:relative;z-index:1}
 .tip-vault-body{display:flex;flex-direction:column;gap:12px;border-top:1px solid rgba(255,255,255,0.05);padding-top:14px;position:relative;z-index:1}
+.tip-vault-body.is-collapsed{display:none!important}
 .tip-vault-tip{padding:12px 14px;border-radius:14px;background:rgba(8,14,26,0.82);border:1px solid rgba(255,255,255,0.05);box-shadow:0 12px 28px rgba(6,10,22,0.45)}
 .tip-vault-tip-title{font-weight:600;color:#f8fbff;margin-bottom:6px;letter-spacing:.03em;text-transform:uppercase;font-size:13px}
 .tip-vault-tip-body{font-size:13px;color:var(--muted);line-height:1.55}
@@ -173,6 +174,7 @@ a{color:inherit}
 .section-title{font-size:17px;font-weight:600;margin-bottom:8px;color:#f5f7ff;letter-spacing:.3px;text-transform:uppercase}
 .input-hint{font-size:12px;color:var(--muted)}
 .callout{margin-top:12px;padding:12px;border-left:3px solid var(--accent-soft);background:rgba(255,148,112,0.12);border-radius:12px;box-shadow:0 14px 28px rgba(255,148,112,0.18)}
+.callout code,.meta code,.small code{word-break:break-word;overflow-wrap:anywhere}
 .callout.is-success{border-left-color:#7cfac8;background:rgba(124,250,200,0.12);box-shadow:0 14px 32px rgba(124,250,200,0.22)}
 .callout.is-danger{border-left-color:#ff7b7b;background:rgba(255,123,123,0.16);box-shadow:0 14px 32px rgba(255,123,123,0.24)}
 .notice{margin:14px 0;padding:12px 14px;border-radius:10px;font-size:13px}

@@ -2,6 +2,12 @@
 document.addEventListener('DOMContentLoaded', ()=>{
 
   const bodyEl = document.body;
+  const escapeSelector = (value) => {
+    if (window.CSS && typeof window.CSS.escape === 'function'){
+      return window.CSS.escape(value);
+    }
+    return String(value || '').replace(/(["'\\\[\]\.:#])/g, '\\$1');
+  };
   const getToastStack = () => {
     let stack = document.querySelector('.easter-toast-stack');
     if (!stack){
@@ -33,6 +39,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }, 2200);
   };
 
+  const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+
   const goToPage = (page)=>{
     const params = new URLSearchParams(window.location.search);
     params.set('page', page);
@@ -58,6 +66,42 @@ document.addEventListener('DOMContentLoaded', ()=>{
   });
 
   // navigation buttons in sidebar and home cards
+  const navToggle = document.querySelector('[data-nav-toggle]');
+  const navOverlay = document.querySelector('[data-nav-overlay]');
+  const sidebar = document.querySelector('[data-sidebar]');
+  const closeNav = () => {
+    if (!bodyEl){
+      return;
+    }
+    bodyEl.classList.remove('nav-open');
+    navToggle?.setAttribute('aria-expanded', 'false');
+  };
+  const openNav = () => {
+    if (!bodyEl){
+      return;
+    }
+    bodyEl.classList.add('nav-open');
+    navToggle?.setAttribute('aria-expanded', 'true');
+  };
+  navToggle?.addEventListener('click', ()=>{
+    if (bodyEl?.classList.contains('nav-open')){
+      closeNav();
+    } else {
+      openNav();
+    }
+  });
+  navOverlay?.addEventListener('click', closeNav);
+  sidebar?.addEventListener('click', (event)=>{
+    if (bodyEl?.classList.contains('nav-open') && event.target.closest('a[data-page]')){
+      closeNav();
+    }
+  });
+  document.addEventListener('keydown', (event)=>{
+    if (event.key === 'Escape'){
+      closeNav();
+    }
+  });
+
   document.querySelectorAll('[data-page]').forEach(btn=>{
     btn.addEventListener('click', e=>{
       if (btn.tagName === 'SELECT') return;
@@ -65,6 +109,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
       const page = btn.dataset.page;
       if (page){
         goToPage(page);
+        closeNav();
       }
     });
   });
@@ -87,44 +132,123 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }, {passive:true});
   });
 
-  // XP tracker (localStorage with cookie fallback)
+  // Auth + XP tracker
   const xpPerLevel = 100;
-  const storageKey = 'xsslab_xp';
-  const cookieKey = 'xsslab_xp';
+  const authStorageKey = 'xsslab_auth_profiles';
+  const sanitizeUsername = (value = '') => value.toLowerCase().replace(/[^a-z0-9_-]/g, '').substring(0, 32);
 
-  const readCookie = () => {
-    const cookies = document.cookie ? document.cookie.split(';') : [];
-    for (const raw of cookies){
-      const [name, ...rest] = raw.trim().split('=');
-      if (name === cookieKey){
-        try {
-          return decodeURIComponent(rest.join('='));
-        } catch (err) {
-          return null;
+  const authStore = {
+    data: { users: {}, currentUser: null },
+    load(){
+      try {
+        const raw = window.localStorage.getItem(authStorageKey);
+        if (raw){
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object'){
+            this.data.users = parsed.users && typeof parsed.users === 'object' ? parsed.users : {};
+            this.data.currentUser = typeof parsed.currentUser === 'string' ? parsed.currentUser : null;
+          }
         }
+      } catch (err) {
+        this.data = { users: {}, currentUser: null };
       }
+    },
+    save(){
+      try {
+        window.localStorage.setItem(authStorageKey, JSON.stringify(this.data));
+      } catch (err) {
+        // ignore quota errors
+      }
+    },
+    getDisplayName(){
+      if (this.data.currentUser && this.data.users[this.data.currentUser]){
+        return this.data.users[this.data.currentUser].username || 'Learner';
+      }
+      return 'Guest';
+    },
+    getProfileKey(){
+      return this.data.currentUser ? `user-${this.data.currentUser}` : 'guest';
+    },
+    isLoggedIn(){
+      return Boolean(this.data.currentUser);
+    },
+    register(username, password){
+      const cleaned = sanitizeUsername(username);
+      if (!cleaned || cleaned.length < 3){
+        return { ok: false, reason: 'invalid_username' };
+      }
+      if (!password || password.length < 4){
+        return { ok: false, reason: 'invalid_password' };
+      }
+      if (this.data.users[cleaned]){
+        return { ok: false, reason: 'exists' };
+      }
+      this.data.users[cleaned] = { username: username.trim(), password };
+      this.data.currentUser = cleaned;
+      this.save();
+      return { ok: true, profile: cleaned };
+    },
+    login(username, password){
+      const cleaned = sanitizeUsername(username);
+      const record = this.data.users[cleaned];
+      if (!record || record.password !== password){
+        return { ok: false, reason: 'invalid_credentials' };
+      }
+      this.data.currentUser = cleaned;
+      this.save();
+      return { ok: true, profile: cleaned };
+    },
+    logout(){
+      this.data.currentUser = null;
+      this.save();
     }
-    return null;
   };
 
-  const writeCookie = (value) => {
-    const encoded = encodeURIComponent(value);
-    const maxAge = 60 * 60 * 24 * 365; // one year
-    document.cookie = `${cookieKey}=${encoded};path=/;max-age=${maxAge}`;
-  };
+  authStore.load();
 
   const xpStore = {
+    baseStorageKey: 'xsslab_xp',
+    baseCookieKey: 'xsslab_xp',
+    namespace: 'guest',
+    storageKey: 'xsslab_xp:guest',
+    cookieKey: 'xsslab_xp:guest',
     data: { total: 0, completed: {}, tipsUsed: {} },
+    setNamespace(name){
+      const safe = typeof name === 'string' && name.length ? name : 'guest';
+      this.namespace = safe;
+      this.storageKey = `${this.baseStorageKey}:${safe}`;
+      this.cookieKey = `${this.baseCookieKey}:${safe}`;
+    },
+    readCookie(){
+      const cookies = document.cookie ? document.cookie.split(';') : [];
+      for (const raw of cookies){
+        const [name, ...rest] = raw.trim().split('=');
+        if (name === this.cookieKey){
+          try {
+            return decodeURIComponent(rest.join('='));
+          } catch (err) {
+            return null;
+          }
+        }
+      }
+      return null;
+    },
+    writeCookie(value){
+      const encoded = encodeURIComponent(value);
+      const maxAge = 60 * 60 * 24 * 365;
+      document.cookie = `${this.cookieKey}=${encoded};path=/;max-age=${maxAge}`;
+    },
     load(){
       let raw = null;
       try {
-        raw = window.localStorage.getItem(storageKey);
+        raw = window.localStorage.getItem(this.storageKey);
       } catch (err) {
         raw = null;
       }
       if (!raw){
-        raw = readCookie();
+        raw = this.readCookie();
       }
+      this.data = { total: 0, completed: {}, tipsUsed: {} };
       if (raw){
         try {
           const parsed = JSON.parse(raw);
@@ -141,11 +265,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
     save(){
       const payload = JSON.stringify(this.data);
       try {
-        window.localStorage.setItem(storageKey, payload);
+        window.localStorage.setItem(this.storageKey, payload);
       } catch (err) {
         // ignore storage quota errors
       }
-      writeCookie(payload);
+      this.writeCookie(payload);
     },
     ensureTipStore(){
       if (!this.data.tipsUsed || typeof this.data.tipsUsed !== 'object'){
@@ -195,6 +319,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }
   };
 
+  xpStore.setNamespace(authStore.getProfileKey());
   xpStore.load();
 
   const levelEl = document.getElementById('xp-level');
@@ -202,7 +327,37 @@ document.addEventListener('DOMContentLoaded', ()=>{
   const progressFill = document.getElementById('xp-progress-fill');
   const resetBtn = document.getElementById('xp-reset');
   const xpHudEl = document.querySelector('[data-xp-hud]');
+  const authStatusEl = document.querySelector('[data-auth-status]');
+  const authLogoutBtn = document.querySelector('[data-auth-logout]');
+  const authModal = document.querySelector('[data-auth-modal]');
+  const authOpenButtons = document.querySelectorAll('[data-auth-open]');
+  const authCloseBtn = authModal?.querySelector('[data-auth-close]');
+  const authTabs = authModal ? Array.from(authModal.querySelectorAll('[data-auth-tab]')) : [];
+  const authForms = authModal ? Array.from(authModal.querySelectorAll('[data-auth-form]')) : [];
+  let activeAuthTab = 'login';
+  const authErrorMessages = {
+    invalid_username: 'Pick a username with at least 3 letters or numbers.',
+    invalid_password: 'Use a password with at least 4 characters.',
+    exists: 'That username is already taken.',
+    invalid_credentials: 'Incorrect username/password combination.'
+  };
   let updateScenarioLocks = () => {};
+  const refreshTipVaults = () => {
+    document.querySelectorAll('[data-tip-vault]').forEach(vault => {
+      if (typeof vault._tipRefresh === 'function'){
+        vault._tipRefresh();
+      } else if (typeof vault._tipLock === 'function'){
+        vault._tipLock();
+      }
+    });
+  };
+  const refreshSpeedrunWidgets = () => {
+    document.querySelectorAll('[data-speedrun]').forEach(shell => {
+      if (typeof shell._speedrunRefresh === 'function'){
+        shell._speedrunRefresh();
+      }
+    });
+  };
 
   const showXpDelta = (amount) => {
     if (!xpHudEl || !Number.isFinite(amount) || amount === 0){
@@ -242,6 +397,118 @@ document.addEventListener('DOMContentLoaded', ()=>{
   };
 
   updateHud();
+
+  const setAuthTab = (name) => {
+    activeAuthTab = name;
+    authTabs.forEach(tab => {
+      const isActive = tab.dataset.authTab === name;
+      tab.classList.toggle('is-active', isActive);
+    });
+    authForms.forEach(form => {
+      const matches = form.dataset.authForm === name;
+      if (matches){
+        form.removeAttribute('hidden');
+      } else {
+        form.setAttribute('hidden', '');
+      }
+    });
+  };
+
+  const openAuthModal = () => {
+    if (!authModal){
+      return;
+    }
+    setAuthTab(activeAuthTab);
+    authModal.removeAttribute('hidden');
+    authModal.setAttribute('aria-hidden', 'false');
+    bodyEl?.classList.add('auth-modal-open');
+  };
+
+  const closeAuthModal = () => {
+    if (!authModal){
+      return;
+    }
+    authModal.setAttribute('hidden', '');
+    authModal.setAttribute('aria-hidden', 'true');
+    bodyEl?.classList.remove('auth-modal-open');
+  };
+
+  const syncAuthUi = () => {
+    if (authStatusEl){
+      authStatusEl.textContent = authStore.isLoggedIn()
+        ? `Logged in as ${authStore.getDisplayName()}`
+        : 'Guest mode: progress stays on this device.';
+    }
+    if (authLogoutBtn){
+      authLogoutBtn.hidden = !authStore.isLoggedIn();
+    }
+  };
+
+  syncAuthUi();
+
+  authOpenButtons.forEach(btn => btn.addEventListener('click', openAuthModal));
+  authCloseBtn?.addEventListener('click', closeAuthModal);
+  authModal?.addEventListener('click', (event)=>{
+    if (event.target === authModal){
+      closeAuthModal();
+    }
+  });
+  document.addEventListener('keydown', (event)=>{
+    if (event.key === 'Escape' && bodyEl?.classList.contains('auth-modal-open')){
+      closeAuthModal();
+    }
+  });
+  authTabs.forEach(tab => {
+    tab.addEventListener('click', ()=>{
+      const target = tab.dataset.authTab;
+      if (target){
+        setAuthTab(target);
+      }
+    });
+  });
+
+  const handleProfileChange = () => {
+    xpStore.setNamespace(authStore.getProfileKey());
+    xpStore.load();
+    updateHud();
+    refreshXpMarkers();
+    refreshTipVaults();
+    updateScenarioLocks();
+    refreshSpeedrunWidgets();
+  };
+
+  authForms.forEach(form => {
+    form.addEventListener('submit', (event)=>{
+      event.preventDefault();
+      const formType = form.dataset.authForm;
+      const formData = new FormData(form);
+      const username = (formData.get('username') || '').toString();
+      const password = (formData.get('password') || '').toString();
+      let result = null;
+      if (formType === 'register'){
+        result = authStore.register(username, password);
+      } else {
+        result = authStore.login(username, password);
+      }
+      if (result && result.ok){
+        syncAuthUi();
+        closeAuthModal();
+        form.reset();
+        handleProfileChange();
+        showToast(formType === 'register' ? 'Profile created!' : 'Logged in successfully');
+      } else {
+        const reason = result && result.reason ? result.reason : 'invalid_credentials';
+        showToast(authErrorMessages[reason] || 'Unable to authenticate.');
+      }
+    });
+  });
+
+  authLogoutBtn?.addEventListener('click', ()=>{
+    authStore.logout();
+    syncAuthUi();
+    handleProfileChange();
+    showToast('Logged out.');
+  });
 
   const konamiSequence = ['ArrowUp','ArrowUp','ArrowDown','ArrowDown','ArrowLeft','ArrowRight','ArrowLeft','ArrowRight','b','a'];
   const konamiBuffer = [];
@@ -318,11 +585,7 @@ document.addEventListener('DOMContentLoaded', ()=>{
             status.textContent = '';
           }
         });
-        document.querySelectorAll('[data-tip-vault]').forEach(vault => {
-          if (typeof vault._tipLock === 'function'){
-            vault._tipLock();
-          }
-        });
+        refreshTipVaults();
         updateScenarioLocks();
       }
     });
@@ -354,6 +617,12 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }
   };
 
+  const refreshXpMarkers = () => {
+    document.querySelectorAll('.xp-marker').forEach(marker => {
+      activateMarker(marker);
+    });
+  };
+
   document.querySelectorAll('.xp-marker').forEach(marker => {
     activateMarker(marker);
     const button = marker.querySelector('.xp-button');
@@ -372,12 +641,53 @@ document.addEventListener('DOMContentLoaded', ()=>{
     });
   });
 
-  const escapeSelector = (value) => {
-    if (window.CSS && typeof window.CSS.escape === 'function'){
-      return window.CSS.escape(value);
+  const awardExploitMarker = (markerId) => {
+    if (!markerId){
+      return false;
     }
-    return value.replace(/(["'\\\[\]\.:#])/g, '\\$1');
+    const marker = document.querySelector(`.xp-marker[data-xp-id="${escapeSelector(markerId)}"]`);
+    const amount = marker ? parseInt(marker.dataset.xpAward || '0', 10) : 25;
+    if (xpStore.award(markerId, amount)){
+      if (marker){
+        activateMarker(marker);
+      }
+      updateHud();
+      showXpDelta(amount);
+      updateScenarioLocks();
+      return true;
+    }
+    return false;
   };
+
+  const getDefaultMarker = () => bodyEl?.dataset.defaultMarker || null;
+  window.__xssLabCurrentMarker = window.__xssLabCurrentMarker || null;
+
+  const triggerExploitAward = () => {
+    const markerId = window.__xssLabCurrentMarker || getDefaultMarker();
+    if (!markerId){
+      return;
+    }
+    if (awardExploitMarker(markerId)){
+      showToast('Exploit recorded! XP updated.');
+    }
+  };
+
+  ['alert','prompt','confirm'].forEach(methodName => {
+    const original = window[methodName];
+    if (typeof original !== 'function'){
+      return;
+    }
+    window[methodName] = function patched(...args){
+      try {
+        triggerExploitAward();
+      } catch (err) {
+        // swallow
+      }
+      return original.apply(window, args);
+    };
+  });
+
+  window.__xssLabMarkExploit = triggerExploitAward;
 
   document.addEventListener('lab:solved', (event)=>{
     if (!event || !event.detail || !event.detail.id){
@@ -445,17 +755,22 @@ document.addEventListener('DOMContentLoaded', ()=>{
         }
       };
 
+      const refreshState = () => {
+        if (xpStore.data.tipsUsed && xpStore.data.tipsUsed[id]){
+          setUnlockedState({ reveal: false, initial: true });
+          if (button){
+            button.textContent = 'Show tips';
+          }
+        } else {
+          setLockedState();
+        }
+      };
+
       vault._tipLock = setLockedState;
       vault._tipUnlock = setUnlockedState;
+      vault._tipRefresh = refreshState;
 
-      if (xpStore.data.tipsUsed && xpStore.data.tipsUsed[id]){
-        setUnlockedState({ reveal: false, initial: true });
-        if (button){
-          button.textContent = 'Show tips';
-        }
-      } else {
-        setLockedState();
-      }
+      refreshState();
 
       if (button){
         button.addEventListener('click', ()=>{
@@ -639,6 +954,278 @@ document.addEventListener('DOMContentLoaded', ()=>{
   };
 
   initScenarioTabs();
+
+  const formatDuration = (ms) => {
+    if (!Number.isFinite(ms) || ms <= 0){
+      return '00:00.000';
+    }
+    const minutes = Math.floor(ms / 60000);
+    const seconds = Math.floor((ms % 60000) / 1000);
+    const millis = Math.floor(ms % 1000);
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(millis).padStart(3, '0')}`;
+  };
+
+  const speedrunCountKey = 'xsslab_speedrun_count';
+  const getSpeedrunBestKey = () => `xsslab_speedrun_best:${authStore.getProfileKey()}`;
+
+  document.querySelectorAll('[data-speedrun]').forEach(shell => {
+    const levelsRaw = shell.dataset.levels || '[]';
+    let levelPool = [];
+    try {
+      const parsed = JSON.parse(levelsRaw);
+      if (Array.isArray(parsed)){
+        levelPool = parsed.filter(Boolean);
+      }
+    } catch (err) {
+      levelPool = [];
+    }
+    const countInput = shell.querySelector('[data-speedrun-count]');
+    const startBtn = shell.querySelector('[data-speedrun-start]');
+    const timerEl = shell.querySelector('[data-speedrun-timer]');
+    const bestEl = shell.querySelector('[data-speedrun-best]');
+    const listEl = shell.querySelector('[data-speedrun-list]');
+    const defaultCount = parseInt(shell.dataset.defaultCount || '5', 10) || 5;
+    let activeRun = null;
+
+    const syncBest = () => {
+      let bestRaw = null;
+      try {
+        bestRaw = window.localStorage.getItem(getSpeedrunBestKey());
+      } catch (err) {
+        bestRaw = null;
+      }
+      const numeric = bestRaw ? parseInt(bestRaw, 10) : 0;
+      if (bestEl){
+        bestEl.textContent = numeric > 0 ? formatDuration(numeric) : 'No runs yet';
+      }
+    };
+
+    const setTimer = (ms) => {
+      if (timerEl){
+        timerEl.textContent = formatDuration(ms);
+      }
+    };
+
+    const renderList = (items) => {
+      if (!listEl){
+        return;
+      }
+      listEl.innerHTML = '';
+      if (!items || !items.length){
+        const empty = document.createElement('div');
+        empty.className = 'speedrun-empty';
+        empty.textContent = 'Hit “Start run” to generate filters.';
+        listEl.appendChild(empty);
+        return;
+      }
+      items.forEach((item, index) => {
+        const row = document.createElement('div');
+        row.className = 'speedrun-item';
+        if (item.complete){
+          row.classList.add('is-complete');
+        }
+        row.dataset.speedrunItem = item.id;
+        const body = document.createElement('div');
+        body.className = 'speedrun-item-body';
+        body.innerHTML = `<div class="speedrun-item-label">Filter ${index + 1}</div><div class="small">${item.name}</div>`;
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'button speedrun-item-button';
+        button.dataset.speedrunComplete = 'true';
+        button.textContent = item.complete ? 'Completed' : 'Log bypass';
+        button.disabled = item.complete;
+        row.appendChild(body);
+        row.appendChild(button);
+        listEl.appendChild(row);
+      });
+    };
+
+    const stopRun = () => {
+      if (activeRun && activeRun.rafId){
+        cancelAnimationFrame(activeRun.rafId);
+      }
+      activeRun = null;
+    };
+
+    const tick = () => {
+      if (!activeRun){
+        return;
+      }
+      const elapsed = Date.now() - activeRun.startedAt;
+      setTimer(elapsed);
+      activeRun.rafId = requestAnimationFrame(tick);
+    };
+
+    const markComplete = (id) => {
+      if (!activeRun){
+        return;
+      }
+      const item = activeRun.items.find(entry => entry.id === id);
+      if (!item || item.complete){
+        return;
+      }
+      item.complete = true;
+      renderList(activeRun.items);
+      if (activeRun.items.every(entry => entry.complete)){
+        const elapsed = Date.now() - activeRun.startedAt;
+        stopRun();
+        setTimer(elapsed);
+        let bestRaw = null;
+        try {
+          bestRaw = window.localStorage.getItem(getSpeedrunBestKey());
+        } catch (err) {
+          bestRaw = null;
+        }
+        const currentBest = bestRaw ? parseInt(bestRaw, 10) : 0;
+        if (!currentBest || elapsed < currentBest){
+          try {
+            window.localStorage.setItem(getSpeedrunBestKey(), String(elapsed));
+          } catch (err) {
+            // ignore
+          }
+          showToast('New personal best!');
+        } else {
+          showToast('Speedrun complete!');
+        }
+        syncBest();
+        document.dispatchEvent(new CustomEvent('lab:solved', { detail: { id: 'filter-speedrun' } }));
+      }
+    };
+
+    const startRun = () => {
+      if (!levelPool.length){
+        showToast('Add filter levels first.');
+        return;
+      }
+      stopRun();
+      let desired = parseInt(countInput?.value || defaultCount, 10);
+      if (!Number.isFinite(desired) || desired <= 0){
+        desired = defaultCount;
+      }
+      desired = Math.min(levelPool.length, Math.max(1, desired));
+      if (countInput){
+        countInput.value = desired;
+      }
+      try {
+        window.localStorage.setItem(speedrunCountKey, String(desired));
+      } catch (err) {
+        // ignore
+      }
+      const pool = [...levelPool];
+      const items = [];
+      while (items.length < desired && pool.length){
+        const index = Math.floor(Math.random() * pool.length);
+        const level = pool.splice(index, 1)[0];
+        items.push({ id: `${level}-${Date.now()}-${items.length}`, level, name: level.replace(/_/g, ' '), complete: false });
+      }
+      activeRun = {
+        items,
+        startedAt: Date.now(),
+        rafId: null
+      };
+      renderList(items);
+      setTimer(0);
+      tick();
+    };
+
+    listEl?.addEventListener('click', (event)=>{
+      const button = event.target.closest('[data-speedrun-complete]');
+      if (!button){
+        return;
+      }
+      const row = button.closest('[data-speedrun-item]');
+      if (!row){
+        return;
+      }
+      markComplete(row.dataset.speedrunItem);
+    });
+
+    startBtn?.addEventListener('click', startRun);
+
+    countInput?.addEventListener('change', ()=>{
+      let value = parseInt(countInput.value, 10);
+      if (!Number.isFinite(value) || value <= 0){
+        value = defaultCount;
+      }
+      value = Math.min(levelPool.length, Math.max(1, value));
+      countInput.value = value;
+      try {
+        window.localStorage.setItem(speedrunCountKey, String(value));
+      } catch (err) {
+        // ignore
+      }
+    });
+
+    const savedCount = (() => {
+      try {
+        const raw = window.localStorage.getItem(speedrunCountKey);
+        return raw ? parseInt(raw, 10) : null;
+      } catch (err) {
+        return null;
+      }
+    })();
+
+    if (countInput){
+      const initial = savedCount && savedCount > 0 ? savedCount : defaultCount;
+      countInput.value = Math.min(levelPool.length, Math.max(1, initial));
+    }
+
+    shell._speedrunRefresh = () => {
+      stopRun();
+      renderList([]);
+      setTimer(0);
+      syncBest();
+    };
+
+    shell._speedrunRefresh();
+  });
+
+  const showMeScripts = {
+    'home-fast-track': [
+      `1. Reflected lab → load ?page=reflected&q=%3Cscript%3Ealert(1)%3C/script%3E to prove the sink executes instantly.`,
+      `2. Stored lab → drop <img src=x onerror=fetch("//localhost/blind_logger.php?p=rat")> into the message body so every visit pings you.`,
+      `3. DOM lab → change the URL hash to #%3Csvg/onload=alert(document.cookie)%3E to hijack the client-side widget.`,
+      `4. Blind XSS logger → submit ?page=blind&payload=%3Cimg%20src=//localhost/blind_logger.php?p=ratlab%3E then watch callbacks.`
+    ]
+  };
+
+  document.querySelectorAll('[data-show-me-shell]').forEach(shell => {
+    const trigger = shell.querySelector('[data-show-me-trigger]');
+    const output = shell.querySelector('[data-show-me-output]');
+    const scriptId = shell.dataset.showMeScript || trigger?.dataset.showMeScript;
+    if (!trigger || !output || !scriptId || !showMeScripts[scriptId]){
+      shell.removeAttribute('data-show-me-shell');
+      return;
+    }
+    let isPlaying = false;
+    const typeLine = async (lineEl, text) => {
+      lineEl.textContent = '';
+      for (let i = 0; i < text.length; i += 1){
+        lineEl.textContent += text.charAt(i);
+        await sleep(22 + Math.random() * 18);
+      }
+    };
+    trigger.addEventListener('click', async ()=>{
+      if (isPlaying){
+        return;
+      }
+      isPlaying = true;
+      trigger.disabled = true;
+      shell.classList.add('is-playing');
+      output.innerHTML = '';
+      const script = showMeScripts[scriptId];
+      for (const line of script){
+        const lineEl = document.createElement('div');
+        lineEl.className = 'show-me-line';
+        output.appendChild(lineEl);
+        await typeLine(lineEl, line);
+        await sleep(260);
+      }
+      shell.classList.remove('is-playing');
+      trigger.disabled = false;
+      isPlaying = false;
+    });
+  });
 
   document.querySelectorAll('[data-fundamentals-playground]').forEach(playground => {
     const input = playground.querySelector('[data-fundamentals-input]');

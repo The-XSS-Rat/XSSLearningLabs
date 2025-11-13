@@ -128,14 +128,15 @@ function tip_vault($id, $cost, $title, $groups = []){
     $idAttr = htmlspecialchars($id, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     $titleEsc = htmlspecialchars($title, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     $costVal = max(0, (int)$cost);
+    $bodyId = $idAttr ? $idAttr.'-body' : uniqid('tip-body-');
     echo '<div class="tip-vault" data-tip-vault data-tip-id="'.$idAttr.'" data-tip-cost="'.$costVal.'">';
     echo '<div class="tip-vault-header">';
     echo '<div class="tip-vault-title">'.$titleEsc.'</div>';
     echo '<div class="tip-vault-meta">Cost: '.$costVal.' XP</div>';
     echo '</div>';
     echo '<div class="tip-vault-status" data-tip-status>Tips are locked. Spend XP when you truly need guidance.</div>';
-    echo '<button type="button" class="button tip-vault-button" data-tip-toggle>Unlock tips (-'.$costVal.' XP)</button>';
-    echo '<div class="tip-vault-body" data-tip-body hidden>';
+    echo '<button type="button" class="button tip-vault-button" data-tip-toggle aria-expanded="false" aria-controls="'.htmlspecialchars($bodyId, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'">Unlock tips (-'.$costVal.' XP)</button>';
+    echo '<div class="tip-vault-body is-collapsed" id="'.htmlspecialchars($bodyId, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8').'" data-tip-body hidden aria-hidden="true">';
     foreach ($groups as $group){
         echo '<div class="tip-vault-tip">';
         if (!empty($group['title'])){
